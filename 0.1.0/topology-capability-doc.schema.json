@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice-spec.org/0.1.0/topology-capability-doc.schema.json",
+  "title": "Lattice — Topology & Capability Document",
+  "description": "An OpenAPI-style, vendor-publishable document describing a site's device topology (a graph of nodes connected by typed directed relationships) and the read/control capabilities each node offers, with concrete data-driven bindings and ranked access paths. A producer (a cloud integration or the gateway) emits a conformant doc; any consumer ingests it generically with no per-provider code. Scale-free: the same constructs describe a cell, a device, a site, or a city.",
+  "type": "object",
+  "required": ["topologyVersion", "producer", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "topologyVersion": { "type": "string", "description": "Version of THIS specification the doc conforms to (semver).", "examples": ["0.1.0"] },
+    "docVersion": { "type": "integer", "description": "Monotonic instance version of THIS document. Bumps on any change, including capability `ref` (re)assignment. The data-plane protobuf carries `doc_version`; a consumer decodes telemetry/encodes control against the doc of the matching docVersion (re-reading the retained topology on an unknown version).", "examples": [1] },
+    "id": { "type": "string", "description": "Stable identifier for this document / site / fragment." },
+    "scope": { "enum": ["site", "fragment"], "default": "fragment", "description": "'fragment' = one producer's slice (the consumer merges fragments by node identity); 'site' = an already-merged graph." },
+    "producer": { "$ref": "#/$defs/producer" },
+    "deviceTypes": { "type": "array", "items": { "$ref": "#/$defs/deviceType" }, "description": "Reusable device-type descriptors (the components/$ref equivalent): a fingerprint plus capability/binding templates, referenced by node.deviceType." },
+    "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } },
+    "relationships": { "type": "array", "items": { "$ref": "#/$defs/relationship" } }
+  },
+  "$defs": {
+    "producer": {
+      "type": "object",
+      "required": ["name", "provider"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "provider": { "type": "string", "description": "Provider/transport identity backing this producer's access paths.", "examples": ["predbat-gateway", "givenergy-cloud", "solis-cloud", "enode", "predbat-cloud"] }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Stable identity (e.g. a serial). THE merge key across producers — the same id from two producers is one node with both their access paths." },
+        "kind": { "$ref": "#/$defs/nodeKind" },
+        "deviceType": { "type": "string", "description": "Optional key referencing a deviceTypes[] descriptor." },
+        "attributes": { "$ref": "#/$defs/attributes" },
+        "accessPaths": { "type": "array", "items": { "$ref": "#/$defs/accessPath" }, "description": "Ways this producer can reach the node. The consumer merges + ranks all producers' access paths to the same id." },
+        "aggregate": { "$ref": "#/$defs/aggregate" },
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } }
+      }
+    },
+    "nodeKind": {
+      "type": "string",
+      "description": "Domain-agnostic node class. Vendor/domain extensions use a namespace prefix, e.g. 'x-acme:thing'. 'structural' = a pure aggregator/virtual node (e.g. a plant or a city) with no telemetry of its own.",
+      "examples": ["battery", "inverter", "pv", "grid", "ev_charger", "ev", "heat_pump", "hvac", "heating_zone", "meter", "switch", "gateway", "ems", "structural"]
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Free-form node attributes referenced by routing, grouping and constraints.",
+      "additionalProperties": true,
+      "properties": {
+        "phase": { "type": ["integer", "string"], "description": "Electrical phase (used by group_by)." },
+        "ratedW": { "type": "number" },
+        "capacityWh": { "type": "number" },
+        "geo": { "$ref": "#/$defs/geo" }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "description": "Optional geospatial location — needed at building/district/city scale.",
+      "additionalProperties": true,
+      "properties": { "lat": { "type": "number" }, "lon": { "type": "number" }, "address": { "type": "string" } }
+    },
+    "accessPath": {
+      "type": "object",
+      "required": ["id", "provider"],
+      "additionalProperties": true,
+      "description": "A way to reach this node's capabilities via a provider/transport.",
+      "properties": {
+        "id": { "type": "string", "description": "Referenced by capabilityOffer.accessPath." },
+        "provider": { "type": "string" },
+        "locality": { "enum": ["local", "cloud"] },
+        "transport": { "type": "string", "examples": ["modbus", "ocpp", "http", "cloud-api"] },
+        "preference": { "type": "integer", "default": 0, "description": "Higher = preferred; the consumer fails over to the next-highest on unavailability." }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["serves"],
+      "additionalProperties": false,
+      "description": "When (and with what priority) this node serves as the aggregate read/control point for its children, instead of routing to each child. Replaces hardcoded primary-selection with data.",
+      "properties": {
+        "serves": { "type": "boolean" },
+        "minChildren": { "type": "integer", "default": 0, "description": "Qualifies only if the configured child-count over `over` >= this. e.g. EMS=0 (always primary), Gateway=2 (only when it fronts >1 unit)." },
+        "priority": { "type": "integer", "default": 0, "description": "Higher wins when several aggregators qualify (e.g. EMS > Gateway)." },
+        "over": { "$ref": "#/$defs/relationType" }
+      }
+    },
+    "capabilityOffer": {
+      "type": "object",
+      "required": ["capability"],
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["read"] }, { "required": ["control"] }],
+      "description": "A capability this node offers on a given access path, with read and/or control binding(s), aggregation semantics and constraints. The same capability may appear multiple times on one node (one per access path) — the consumer ranks them by access-path preference (this is how 'control via gateway OR cloud, with fallback' is expressed).",
+      "properties": {
+        "capability": { "$ref": "#/$defs/capabilityName" },
+        "ref": { "type": "integer", "description": "Stable small integer (the data-plane `cap_ref`) identifying this (node, capability) on telemetry/control. Keyed by node+capability — multiple access-path offers for the same capability SHARE one ref (the consumer picks the access path). Stable within a docVersion." },
+        "accessPath": { "type": "string", "description": "id of the node's accessPath that serves this offer." },
+        "unit": { "type": "string", "examples": ["W", "Wh", "%", "V", "A", "degC", "Hz", "hhmm"] },
+        "read": { "$ref": "#/$defs/binding" },
+        "control": { "$ref": "#/$defs/binding" },
+        "reducer": { "$ref": "#/$defs/reducer" },
+        "groupBy": { "type": "string", "description": "Attribute name partitioning a multi-element read into per-group results (e.g. 'phase' for grid voltage)." },
+        "distribution": { "$ref": "#/$defs/distribution" },
+        "constraints": { "$ref": "#/$defs/constraints" },
+        "schedule": { "type": "boolean", "default": false, "description": "true if the control payload is a time-indexed plan (windows/profile), not a scalar." }
+      }
+    },
+    "capabilityName": {
+      "type": "string",
+      "description": "Domain-agnostic capability name. Vendor/domain extensions use a namespace prefix (e.g. 'x-acme:foo'). A capability name MUST NOT name a vendor or device. Core set in examples.",
+      "examples": ["soc", "power", "voltage", "current", "temperature", "capacity", "pv_power", "grid_power", "load_power", "grid_voltage", "charge_rate", "discharge_rate", "target_soc", "reserve_soc", "charge_enable", "discharge_enable", "charge_slot", "discharge_slot", "export_limit", "soh", "cycle_count", "cell_voltage", "cell_temperature"]
+    },
+    "binding": {
+      "type": "object",
+      "required": ["protocol", "address"],
+      "additionalProperties": true,
+      "description": "The concrete 'how to read/write this on this access path': protocol, address, op, encoding and a value transform. An adapter executes it; the model needs no per-model code. This is what replaces hardcoded register maps.",
+      "properties": {
+        "protocol": { "type": "string", "examples": ["modbus", "ocpp", "http", "cloud-api"] },
+        "address": { "type": ["string", "integer", "object"], "description": "Register number/range, API endpoint/field, OCPP action, etc." },
+        "op": { "type": "string", "examples": ["read_input", "read_holding", "write_single", "write_multi", "get", "post"] },
+        "count": { "type": "integer", "default": 1, "description": "# elements/registers — vector reads (per-unit SOC) or slot start+end." },
+        "encoding": { "$ref": "#/$defs/encoding" },
+        "transform": { "$ref": "#/$defs/transform" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "description": "Named, parameterised value transform (raw <-> engineering units). 'kind' values beyond the core set are vendor/adapter extensions (namespaced). Vendor-specificity is allowed HERE (and in bindings/deviceType keys) — never in capability names.",
+      "properties": {
+        "kind": { "type": "string", "examples": ["identity", "scale", "negate_scale", "ratio", "hhmm", "ge_rate_half", "ge_rate_full", "ge_capacity"] },
+        "num": { "type": "number" },
+        "den": { "type": "number" }
+      }
+    },
+    "encoding": { "type": "string", "examples": ["u16", "i16", "u32_hl", "i32_hl", "u16_vec"] },
+    "reducer": { "type": "string", "enum": ["direct", "sum", "mean", "min", "max", "spread", "representative"], "description": "How multiple read sources (or vector elements) combine. 'representative' = redundant value, read one. 'spread' = max-min (e.g. cell imbalance)." },
+    "distribution": { "type": "string", "enum": ["replicate", "split", "first_accepts"], "description": "How one control intent maps onto multiple targets." },
+    "relationType": { "type": "string", "enum": ["contains", "measures", "controls", "powers"], "description": "Directed edge, read subject->object, with an implied named inverse." },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Bounds/valid-set/interlocks resolution must respect. May be static or a derived expression.",
+      "properties": {
+        "min": { "type": ["number", "string"] },
+        "max": { "type": ["number", "string"], "description": "A number, or a derived expression like 'min(capacity/2, rated)'." },
+        "validSet": { "type": "array" },
+        "rateLimit": { "type": "number", "description": "Max rate-of-change." },
+        "scope": { "enum": ["capability", "node", "site"], "default": "capability", "description": "site = e.g. max grid import, G98/G99 export limit." }
+      }
+    },
+    "deviceType": {
+      "type": "object",
+      "required": ["key"],
+      "additionalProperties": false,
+      "description": "Reusable descriptor: a fingerprint (recognition rules — the discovery schema as data) plus capability/binding templates and a default aggregate. Instances reference it via node.deviceType. Keyed by (make, model, firmware); a firmware change is a new descriptor version, not a per-node rewrite.",
+      "properties": {
+        "key": { "type": "string", "examples": ["GE-AIO", "GE-Gateway", "GE-EMS", "GE-3PH"] },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } },
+        "aggregate": { "$ref": "#/$defs/aggregate" }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "How to recognise a device as this type (used by discovered producers, e.g. the gateway).",
+      "properties": {
+        "dtcHi": { "type": "string", "description": "Device-type-code high byte, e.g. '0x80'." },
+        "fwMin": { "type": "integer" },
+        "fwMax": { "type": "integer" },
+        "serialPrefix": { "type": "string" },
+        "probe": { "type": "object", "description": "e.g. an input register that must be > 0." }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "required": ["from", "to", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "description": "subject node id" },
+        "to": { "type": "string", "description": "object node id" },
+        "type": { "$ref": "#/$defs/relationType" }
+      }
+    }
+  }
+}

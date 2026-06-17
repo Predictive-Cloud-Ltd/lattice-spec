@@ -1,0 +1,72 @@
+{
+  "$schema": "../topology-capability-doc.schema.json",
+  "topologyVersion": "0.1.0",
+  "docVersion": 1,
+  "id": "site:example-givenergy",
+  "scope": "site",
+  "producer": { "name": "PredBat cloud (merged from gateway + GivEnergy Cloud fragments)", "provider": "predbat-cloud" },
+
+  "nodes": [
+    {
+      "id": "GW2330G011",
+      "kind": "gateway",
+      "deviceType": "GE-Gateway",
+      "attributes": { "ratedW": 12000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "predbat-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "aggregate": { "serves": true, "minChildren": 2, "priority": 10, "over": "contains" },
+      "capabilities": [
+        {
+          "capability": "grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 1616, "encoding": "i16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "soc", "ref": 2, "accessPath": "gw-local", "unit": "%", "reducer": "mean",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 1801, "count": 3, "encoding": "u16_vec", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 3, "accessPath": "gw-local", "unit": "W",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "read": { "protocol": "modbus", "op": "read_holding", "address": 313, "encoding": "u16", "transform": { "kind": "ge_rate_full" } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 313, "encoding": "u16", "transform": { "kind": "ge_rate_full" } }
+        }
+      ]
+    },
+    {
+      "id": "CH2330G499",
+      "kind": "inverter",
+      "deviceType": "GE-AIO",
+      "attributes": { "phase": 1, "ratedW": 6000, "capacityWh": 13314 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "predbat-gateway", "locality": "local", "transport": "modbus", "preference": 10 },
+        { "id": "ge-cloud", "provider": "givenergy-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 1 }
+      ],
+      "capabilities": [
+        {
+          "capability": "soc", "ref": 10, "accessPath": "gw-local", "unit": "%",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 59, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "capacity", "ref": 11, "accessPath": "gw-local", "unit": "Wh",
+          "read": { "protocol": "modbus", "op": "read_holding", "address": 55, "encoding": "u16", "transform": { "kind": "ge_capacity" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 12, "accessPath": "gw-local", "unit": "W",
+          "constraints": { "min": 0, "max": "min(capacity/2, rated)", "scope": "node" },
+          "read": { "protocol": "modbus", "op": "read_holding", "address": 111, "encoding": "u16", "transform": { "kind": "ge_rate_half" } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 111, "encoding": "u16", "transform": { "kind": "ge_rate_half" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 12, "accessPath": "ge-cloud", "unit": "W",
+          "constraints": { "min": 0, "max": "min(capacity/2, rated)", "scope": "node" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverter/{serial}/commands/set-charge-rate", "transform": { "kind": "identity" } }
+        }
+      ]
+    }
+  ],
+
+  "relationships": [
+    { "from": "GW2330G011", "to": "CH2330G499", "type": "contains" }
+  ]
+}

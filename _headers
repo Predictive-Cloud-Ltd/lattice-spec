@@ -1,0 +1,12 @@
+# Cloudflare Pages headers — make the canonical schema URL resolvable + tool-usable
+/*
+  X-Content-Type-Options: nosniff
+  Access-Control-Allow-Origin: *
+
+/0.1.0/*.json
+  Content-Type: application/schema+json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+/0.1.0/*.proto
+  Content-Type: text/plain; charset=utf-8
+  Access-Control-Allow-Origin: *

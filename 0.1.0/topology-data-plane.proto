@@ -1,0 +1,78 @@
+syntax = "proto3";
+package predbat.topology.dataplane.v0;
+
+// =============================================================================
+// Topology data plane — runtime values over MQTT.
+//
+// The topology/capability DOC is the codec. It assigns each capability a stable
+// `cap_ref` and carries a `docVersion`. These messages carry compact
+// (cap_ref, value) tuples; the doc of the matching `doc_version` decodes
+// cap_ref -> node / capability / unit.
+//
+// Wire principle: ENGINEERING values + INTENTS only. Raw registers and value
+// transforms never cross the wire — the device applies them (read transform
+// before telemetry; control resolution after a command). Telemetry and control
+// are therefore symmetric. Adding a new device/capability => a new doc + new
+// cap_refs, with NO change to this .proto and no firmware rebuild.
+//
+// Topics (on predbat/devices/<device_id>/...):
+//   .../topology   device->cloud  JSON doc (retained)      — description plane
+//   .../telemetry  device->cloud  Telemetry (non-retained) — data: read
+//   .../control    cloud->device  Control   (non-retained) — data: write (intent)
+//   .../ack/<id>   device->cloud  ControlAck(non-retained) — write ack
+// =============================================================================
+
+// device -> cloud, topic: .../telemetry   (frequent, non-retained stream)
+message Telemetry {
+  uint32 doc_version  = 1;   // topology doc whose cap_refs these samples use
+  uint64 base_ts_ms   = 2;   // base timestamp; samples carry deltas from this
+  repeated Sample samples = 3;
+}
+
+message Sample {
+  uint32 cap_ref   = 1;      // stable ref of a (node, capability) in the doc
+  uint32 group     = 2;      // index for vector/grouped caps (phase / cell / unit); 0 = scalar
+  uint32 ts_off_ms = 3;      // delta from Telemetry.base_ts_ms
+  oneof value {              // ENGINEERING value (unit per the doc's capability)
+    sint64 i = 4;
+    double d = 5;
+    bool   b = 6;
+  }
+}
+
+// cloud -> device, topic: .../control   (non-retained)
+// High-level INTENT. The device resolves cap_ref -> control binding and executes
+// locally: clamp to constraints, transform to raw, distribute, write via the
+// best available access path. The cloud never sends raw registers.
+message Control {
+  string command_id  = 1;
+  uint32 doc_version  = 2;   // must match the device's current doc, else nack ("stale doc_version")
+  uint32 cap_ref      = 3;   // a CONTROLLABLE (node, capability) in the doc
+  oneof payload {
+    Scalar   scalar   = 4;   // instantaneous set
+    Schedule schedule = 5;   // time-indexed plan (windows / profile)
+  }
+}
+
+message Scalar {
+  oneof value {              // ENGINEERING value
+    sint64 i = 1;
+    double d = 2;
+    bool   b = 3;
+  }
+}
+
+message Schedule { repeated Slot slots = 1; }
+
+message Slot {
+  uint32 start_hhmm = 1;     // HHMM, e.g. 530 = 05:30
+  uint32 end_hhmm   = 2;
+  sint64 value      = 3;     // engineering value for the window (e.g. rate W, or target %)
+}
+
+// device -> cloud, topic: .../ack/<command_id>   (non-retained)
+message ControlAck {
+  string command_id = 1;
+  bool   ok         = 2;
+  string error      = 3;     // empty when ok; e.g. "stale doc_version", "out of range", "no access path", "write failed"
+}
