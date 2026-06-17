@@ -15,7 +15,7 @@ copyFileSync(
   resolve(out, "schema.json"),
 );
 copyFileSync(
-  resolve(repo, "0.1.0/examples/givenergy-site.topology.json"),
+  resolve(repo, "0.1.0/examples/example-site.topology.json"),
   resolve(out, "example.json"),
 );
 console.log("copy-artifacts: wrote src/generated/{schema.json,example.json}");

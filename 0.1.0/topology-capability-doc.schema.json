@@ -133,7 +133,7 @@
       "additionalProperties": true,
       "description": "Named, parameterised value transform (raw <-> engineering units). 'kind' values beyond the core set are vendor/adapter extensions (namespaced). Vendor-specificity is allowed HERE (and in bindings/deviceType keys) — never in capability names.",
       "properties": {
-        "kind": { "type": "string", "examples": ["identity", "scale", "negate_scale", "ratio", "hhmm", "ge_rate_half", "ge_rate_full", "ge_capacity"] },
+        "kind": { "type": "string", "examples": ["identity", "scale", "negate_scale", "ratio", "hhmm", "rate_percent", "capacity_ratio"] },
         "num": { "type": "number" },
         "den": { "type": "number" }
       }
@@ -160,7 +160,7 @@
       "additionalProperties": false,
       "description": "Reusable descriptor: a fingerprint (recognition rules — the discovery schema as data) plus capability/binding templates and a default aggregate. Instances reference it via node.deviceType. Keyed by (make, model, firmware); a firmware change is a new descriptor version, not a per-node rewrite.",
       "properties": {
-        "key": { "type": "string", "examples": ["GE-AIO", "GE-Gateway", "GE-EMS", "GE-3PH"] },
+        "key": { "type": "string", "examples": ["example-hybrid-inverter", "example-gateway", "example-evse", "example-meter"] },
         "fingerprint": { "$ref": "#/$defs/fingerprint" },
         "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } },
         "aggregate": { "$ref": "#/$defs/aggregate" }

@@ -23,7 +23,7 @@ Just as a web API ships an `openapi.json` and any client talks to it without bes
 
 - **Meta-schema** (JSON Schema 2020-12): [`0.1.0/topology-capability-doc.schema.json`](0.1.0/topology-capability-doc.schema.json) — canonical `$id`: `https://lattice-spec.org/0.1.0/topology-capability-doc.schema.json`
 - **Data plane** (protobuf): [`0.1.0/topology-data-plane.proto`](0.1.0/topology-data-plane.proto)
-- **Worked example** (validates against the schema): [`0.1.0/examples/givenergy-site.topology.json`](0.1.0/examples/givenergy-site.topology.json)
+- **Worked example** (vendor-neutral; validates against the schema): [`0.1.0/examples/example-site.topology.json`](0.1.0/examples/example-site.topology.json)
 
 ## Specification (drafts)
 

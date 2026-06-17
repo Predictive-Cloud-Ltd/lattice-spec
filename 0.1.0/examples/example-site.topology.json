@@ -1,0 +1,103 @@
+{
+  "$schema": "../topology-capability-doc.schema.json",
+  "topologyVersion": "0.1.0",
+  "docVersion": 1,
+  "id": "site:example-home",
+  "scope": "site",
+  "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
+
+  "nodes": [
+    {
+      "id": "GW-0001",
+      "kind": "gateway",
+      "deviceType": "example-hub",
+      "attributes": { "ratedW": 10000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "aggregate": { "serves": true, "minChildren": 2, "priority": 10, "over": "contains" },
+      "capabilities": [
+        {
+          "capability": "grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 100, "encoding": "i16", "transform": { "kind": "identity" } }
+        }
+      ]
+    },
+    {
+      "id": "INV-0001",
+      "kind": "inverter",
+      "deviceType": "example-hybrid-inverter",
+      "attributes": { "phase": 1, "ratedW": 5000, "capacityWh": 10000 },
+      "accessPaths": [
+        { "id": "gw-local",     "provider": "local-gateway", "locality": "local", "transport": "modbus",    "preference": 10 },
+        { "id": "vendor-cloud", "provider": "example-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 1 }
+      ],
+      "capabilities": [
+        {
+          "capability": "soc", "ref": 10, "accessPath": "gw-local", "unit": "%",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 60, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "capacity", "ref": 11, "accessPath": "gw-local", "unit": "Wh",
+          "read": { "protocol": "modbus", "op": "read_holding", "address": 70, "encoding": "u32_hl", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 12, "accessPath": "gw-local", "unit": "W",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } },
+          "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
+        },
+        {
+          "capability": "charge_rate", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/commands/set-charge-rate", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "target_soc", "ref": 13, "accessPath": "gw-local", "unit": "%",
+          "constraints": { "min": 0, "max": 100, "scope": "capability" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } }
+        }
+      ]
+    },
+    {
+      "id": "EVSE-0001",
+      "kind": "ev_charger",
+      "deviceType": "example-evse",
+      "accessPaths": [
+        { "id": "ocpp", "provider": "example-cloud", "locality": "cloud", "transport": "ocpp", "preference": 5 }
+      ],
+      "capabilities": [
+        {
+          "capability": "power", "ref": 20, "accessPath": "ocpp", "unit": "W",
+          "read": { "protocol": "ocpp", "op": "get", "address": "MeterValues/Power.Active.Import", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 21, "accessPath": "ocpp", "unit": "A",
+          "constraints": { "min": 0, "max": 32, "scope": "node" },
+          "control": { "protocol": "ocpp", "op": "post", "address": "SetChargingProfile", "transform": { "kind": "identity" } }
+        }
+      ]
+    },
+    {
+      "id": "MTR-0001",
+      "kind": "meter",
+      "deviceType": "example-meter",
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "grid_voltage", "ref": 30, "accessPath": "gw-local", "unit": "V",
+          "reducer": "representative", "groupBy": "phase",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 200, "count": 3, "encoding": "u16_vec", "transform": { "kind": "scale", "num": 1, "den": 10 } }
+        }
+      ]
+    }
+  ],
+
+  "relationships": [
+    { "from": "GW-0001",  "to": "INV-0001", "type": "contains" },
+    { "from": "MTR-0001", "to": "GW-0001",  "type": "measures" }
+  ]
+}
