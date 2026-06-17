@@ -5,9 +5,10 @@ import { validateDoc } from "./validate";
 import { Graph } from "./Graph";
 import { Resolver } from "./Resolver";
 import { Merge } from "./Merge";
+import { Discover } from "./Discover";
 
 export default function App() {
-  const [mode, setMode] = useState<"editor" | "merge">("editor");
+  const [mode, setMode] = useState<"editor" | "merge" | "discover">("editor");
   const [text, setText] = useState<string>(JSON.stringify(example, null, 2));
 
   const parsed = useMemo(() => {
@@ -39,12 +40,15 @@ export default function App() {
         <div className="seg headseg">
           <button className={mode === "editor" ? "on" : ""} onClick={() => setMode("editor")}>Editor</button>
           <button className={mode === "merge" ? "on" : ""} onClick={() => setMode("merge")}>Merge</button>
+          <button className={mode === "discover" ? "on" : ""} onClick={() => setMode("discover")}>Discover</button>
         </div>
         <a className="right" href="https://lattice-spec.org" target="_blank" rel="noreferrer">lattice-spec.org →</a>
       </header>
 
       {mode === "merge" ? (
         <Merge />
+      ) : mode === "discover" ? (
+        <Discover />
       ) : (
       <div className="panes">
         <div className="left">
