@@ -7,7 +7,7 @@
 
 **Normative artifacts:**
 - **Meta-schema:** [`../0.1.0/topology-capability-doc.schema.json`](../0.1.0/topology-capability-doc.schema.json) — JSON Schema (draft 2020-12) defining a *valid* doc.
-- **Worked example:** [`../0.1.0/examples/givenergy-site.topology.json`](../0.1.0/examples/givenergy-site.topology.json) — a GivEnergy gateway+AIO site (validates against the meta-schema).
+- **Worked example:** [`../0.1.0/examples/givenergy-site.topology.json`](../0.1.0/examples/givenergy-site.topology.json) — a vendor-neutral home site (validates against the meta-schema).
 
 ---
 
