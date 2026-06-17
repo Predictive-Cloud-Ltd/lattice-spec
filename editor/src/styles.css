@@ -68,3 +68,24 @@ header .right:hover { text-decoration: underline; }
 .bind { font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; display: inline-block; }
 .clamped-tag { color: #f59e0b; font-weight: 700; margin-left: 6px; }
 code { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px; font-size: 12px; }
+
+/* Header mode toggle */
+.headseg { margin-left: 4px; }
+.headseg button { padding: 5px 14px; }
+
+/* Merge view */
+.merge { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; }
+.merge-inputs { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+.frag { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.frag:first-child { border-bottom: 1px solid var(--line); }
+.frag-head { padding: 8px 12px; font-size: 12px; color: var(--ink); background: var(--panel); border-bottom: 1px solid var(--line); }
+.frag textarea { flex: 1; resize: none; border: 0; background: #0a0f24; color: var(--ink); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px 12px; outline: none; min-height: 0; }
+.merge-out { overflow: auto; padding: 12px 14px; min-height: 0; }
+.merges { display: flex; flex-direction: column; gap: 6px; }
+.mnode { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel); }
+.mnode.multi { border-color: var(--accent); background: rgba(110,168,254,0.08); }
+.mnode-id { font-weight: 600; font-size: 13px; }
+.badge { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; background: var(--accent); color: #08122e; border-radius: 999px; padding: 1px 7px; font-weight: 700; }
+.mn-aps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.merge-note { margin-top: 14px; line-height: 1.5; }
+@media (max-width: 760px){ .merge { grid-template-columns: 1fr; } }
