@@ -3,6 +3,7 @@ import Editor from "@monaco-editor/react";
 import example from "./generated/example.json";
 import { validateDoc } from "./validate";
 import { Graph } from "./Graph";
+import { Resolver } from "./Resolver";
 
 export default function App() {
   const [text, setText] = useState<string>(JSON.stringify(example, null, 2));
@@ -60,6 +61,9 @@ export default function App() {
               {result.errors.length > 14 && <li className="muted">… and {result.errors.length - 14} more</li>}
             </ul>
           )}
+
+          <div className="section">Resolve <span className="muted small">— route, access-path fallback &amp; clamp</span></div>
+          <Resolver doc={doc} />
 
           <div className="section">Topology</div>
           <Graph doc={doc} />
