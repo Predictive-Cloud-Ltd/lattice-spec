@@ -1,0 +1,30 @@
+{
+  "name": "lattice-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Live editor + validator + topology visualiser for Lattice documents (editor.lattice-spec.org).",
+  "scripts": {
+    "predev": "node scripts/copy-artifacts.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/copy-artifacts.mjs",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "cytoscape": "^3.30.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/cytoscape": "^3.21.8",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.5"
+  }
+}

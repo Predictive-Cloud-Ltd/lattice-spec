@@ -1,0 +1,44 @@
+:root {
+  --bg: #0b1020; --panel: #0e1430; --ink: #e7ecf5; --muted: #9fb0cf;
+  --line: #26314f; --ok: #22c55e; --bad: #f87171; --accent: #6ea8fe;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.app { display: flex; flex-direction: column; height: 100%; }
+header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+}
+header .brand { font-weight: 800; letter-spacing: -0.01em; }
+header .right { margin-left: auto; color: var(--accent); text-decoration: none; }
+header .right:hover { text-decoration: underline; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+
+.panes { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; }
+.left { border-right: 1px solid var(--line); min-height: 0; }
+.right { overflow: auto; padding: 12px 14px; min-height: 0; }
+
+.status { padding: 8px 12px; border-radius: 8px; font-weight: 600; }
+.status.ok { background: rgba(34, 197, 94, 0.12); color: var(--ok); border: 1px solid rgba(34,197,94,0.35); }
+.status.bad { background: rgba(248, 113, 113, 0.10); color: var(--bad); border: 1px solid rgba(248,113,113,0.35); }
+
+.errors { margin: 10px 0 0; padding-left: 18px; color: var(--bad); font-size: 12.5px; }
+.errors li { margin: 2px 0; }
+
+.section { margin: 18px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.graph { height: 320px; border: 1px solid var(--line); border-radius: 10px; background: #0a0f24; }
+
+.caps { display: flex; flex-direction: column; gap: 4px; }
+.cap {
+  display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: center;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 12.5px;
+}
+.cap-node { color: var(--muted); }
+.cap-name { font-weight: 600; }
+.cap-rw { font-family: ui-monospace, monospace; color: var(--accent); font-size: 11px; }
+.cap-unit { text-align: right; }
