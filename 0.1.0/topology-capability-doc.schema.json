@@ -111,7 +111,7 @@
     "capabilityName": {
       "type": "string",
       "description": "Domain-agnostic capability name. Vendor/domain extensions use a namespace prefix (e.g. 'x-acme:foo'). A capability name MUST NOT name a vendor or device. Core set in examples.",
-      "examples": ["soc", "power", "voltage", "current", "temperature", "capacity", "pv_power", "grid_power", "load_power", "grid_voltage", "charge_rate", "discharge_rate", "target_soc", "reserve_soc", "charge_enable", "discharge_enable", "charge_slot", "discharge_slot", "export_limit", "soh", "cycle_count", "cell_voltage", "cell_temperature"]
+      "examples": ["soc", "power", "voltage", "current", "temperature", "capacity", "pv_power", "grid_power", "load_power", "grid_voltage", "charge_rate", "discharge_rate", "target_soc", "target_temperature", "reserve_soc", "charge_enable", "discharge_enable", "charge_slot", "discharge_slot", "export_limit", "soh", "cycle_count", "cell_voltage", "cell_temperature"]
     },
     "binding": {
       "type": "object",

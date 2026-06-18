@@ -28,6 +28,11 @@
         {
           "capability": "grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
           "read": { "protocol": "modbus", "op": "read_input", "address": 100, "encoding": "i16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 2, "accessPath": "gw-local", "unit": "W",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 110, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
         }
       ]
     },
