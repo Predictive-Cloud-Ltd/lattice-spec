@@ -7,7 +7,7 @@
 
 **Normative artifacts:**
 - **Meta-schema:** [`../0.1.0/topology-capability-doc.schema.json`](../0.1.0/topology-capability-doc.schema.json) — JSON Schema (draft 2020-12) defining a *valid* doc.
-- **Worked example:** [`../0.1.0/examples/givenergy-site.topology.json`](../0.1.0/examples/givenergy-site.topology.json) — a vendor-neutral home site (validates against the meta-schema).
+- **Worked example:** [`../0.1.0/examples/example-site.topology.json`](../0.1.0/examples/example-site.topology.json) — a vendor-neutral home site (validates against the meta-schema).
 
 ---
 
@@ -49,6 +49,7 @@ The meta-schema is the keystone: a vendor validates their doc against it; the ga
 - **Multiple offers per capability = ranked alternatives.** Repeat a `capabilityOffer` for the same capability, one per `accessPath`; the consumer orders them by `accessPath.preference` and fails over.
 - **Vendor-specificity lives only in `deviceType` keys, `binding`s and `transform`s** — never in `capability`/`kind` names. A capability that names a vendor or device is non-conformant.
 - **Scale-free.** The same constructs describe a cell, a device, a site, or a city; a `structural` node aggregates (a plant, a district, a city). City scale just merges more fragments at a higher scope.
+- **Schema + semantic conformance.** JSON Schema validates document shape; the conformance harness also checks cross-reference invariants such as relationship endpoints, `accessPath` references, and `cap_ref` uniqueness.
 
 ## 4. Versioning & extensibility
 

@@ -9,7 +9,9 @@
     "dev": "vite",
     "prebuild": "node scripts/copy-artifacts.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm run test:conformance",
+    "test:conformance": "node scripts/conformance.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

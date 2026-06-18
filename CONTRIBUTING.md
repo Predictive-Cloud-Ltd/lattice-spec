@@ -24,18 +24,15 @@ Editorial changes (typos, clarifications, examples) can go straight to a PR.
 
 ## Validating locally
 
-The worked example is validated against the JSON Schema (draft 2020-12), e.g. with any JSON Schema validator:
+The conformance harness validates every example in `0.1.0/examples/` against the JSON Schema (draft 2020-12), then runs semantic checks the schema cannot express:
 
 ```
-# python
-pip install jsonschema
-python - <<'PY'
-import json, jsonschema
-s = json.load(open("docs/superpowers/specs/schema/topology-capability-doc.schema.json"))
-d = json.load(open("docs/superpowers/specs/examples/givenergy-site.topology.json"))
-jsonschema.validate(d, s); print("OK")
-PY
+cd editor
+npm ci
+npm run test:conformance
 ```
+
+The harness checks invariants such as unique node IDs, valid relationship endpoints, capability `accessPath` references, and `ref`/`cap_ref` uniqueness rules.
 
 ## Sign-off (DCO)
 
