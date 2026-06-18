@@ -6,11 +6,18 @@
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
 
+  "deviceTypes": [
+    { "key": "example-gateway",         "fingerprint": { "serialPrefix": "GW-" } },
+    { "key": "example-hybrid-inverter", "fingerprint": { "serialPrefix": "INV-" } },
+    { "key": "example-evse",            "fingerprint": { "serialPrefix": "EVSE-" } },
+    { "key": "example-meter",           "fingerprint": { "serialPrefix": "MTR-" } }
+  ],
+
   "nodes": [
     {
       "id": "GW-0001",
       "kind": "gateway",
-      "deviceType": "example-hub",
+      "deviceType": "example-gateway",
       "attributes": { "ratedW": 10000 },
       "accessPaths": [
         { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }

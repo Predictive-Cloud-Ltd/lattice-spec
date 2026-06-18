@@ -29,9 +29,7 @@ export default function App() {
     : result?.ok
       ? { cls: "ok", msg: "✓ Valid Lattice document" }
       : result?.schemaErrors.length
-        ? result.conformanceErrors.length
-          ? { cls: "bad", msg: `✗ ${result.errors.length} validation error(s)` }
-          : { cls: "bad", msg: `✗ ${result.schemaErrors.length} schema error(s)` }
+        ? { cls: "bad", msg: `✗ ${result.schemaErrors.length} schema error(s)` }
         : { cls: "bad", msg: `✗ ${result?.conformanceErrors.length ?? 0} conformance error(s)` };
 
   const doc = parsed.obj as { nodes?: any[] } | null;

@@ -38,7 +38,7 @@ for (const examplePath of examples) {
     const path = error.instancePath || "(root)";
     return `${label}: ${path} ${error.message ?? "is invalid"}`;
   });
-  const semanticErrors = checkSemanticInvariants(doc, { label, requireDocVersion: true });
+  const semanticErrors = checkSemanticInvariants(doc, { label });
   const errors = [...schemaErrors, ...semanticErrors];
 
   if (ok && semanticErrors.length === 0) {

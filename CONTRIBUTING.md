@@ -32,7 +32,7 @@ npm ci
 npm run test:conformance
 ```
 
-The harness checks invariants such as unique node IDs, valid relationship endpoints, capability `accessPath` references, and `ref`/`cap_ref` uniqueness rules.
+The harness checks invariants such as unique node IDs, valid relationship endpoints, `deviceType` references resolving to a declared descriptor, capability `accessPath` references, `ref`/`cap_ref` uniqueness rules, and deterministic `aggregate` primary-selection. Data-plane requirements (`docVersion`, per-capability `ref`/`accessPath`) are enforced for merged `site` docs and relaxed for description-only `fragment`s; `editor/scripts/conformance.test.mjs` (run via `npm run test:unit`) covers these rules.
 
 ## Sign-off (DCO)
 
