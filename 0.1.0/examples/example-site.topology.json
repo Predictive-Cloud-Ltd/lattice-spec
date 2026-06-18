@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 1,
+  "docVersion": 2,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -10,7 +10,8 @@
     { "key": "example-gateway",         "fingerprint": { "serialPrefix": "GW-" } },
     { "key": "example-hybrid-inverter", "fingerprint": { "serialPrefix": "INV-" } },
     { "key": "example-evse",            "fingerprint": { "serialPrefix": "EVSE-" } },
-    { "key": "example-meter",           "fingerprint": { "serialPrefix": "MTR-" } }
+    { "key": "example-meter",           "fingerprint": { "serialPrefix": "MTR-" } },
+    { "key": "example-heat-pump",       "fingerprint": { "serialPrefix": "HP-" } }
   ],
 
   "nodes": [
@@ -100,11 +101,37 @@
           "read": { "protocol": "modbus", "op": "read_input", "address": 200, "count": 3, "encoding": "u16_vec", "transform": { "kind": "scale", "num": 1, "den": 10 } }
         }
       ]
+    },
+    {
+      "id": "HP-0001",
+      "kind": "heat_pump",
+      "deviceType": "example-heat-pump",
+      "attributes": { "phase": 1, "ratedW": 3000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "temperature", "ref": 40, "accessPath": "gw-local", "unit": "degC",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 300, "encoding": "i16", "transform": { "kind": "scale", "num": 1, "den": 10 } }
+        },
+        {
+          "capability": "power", "ref": 41, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 302, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "target_temperature", "ref": 42, "accessPath": "gw-local", "unit": "degC",
+          "constraints": { "min": 15, "max": 60, "scope": "capability" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 304, "encoding": "u16", "transform": { "kind": "scale", "num": 1, "den": 10 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 304, "encoding": "u16", "transform": { "kind": "scale", "num": 1, "den": 10 } }
+        }
+      ]
     }
   ],
 
   "relationships": [
     { "from": "GW-0001",  "to": "INV-0001", "type": "contains" },
+    { "from": "GW-0001",  "to": "HP-0001",  "type": "contains" },
     { "from": "MTR-0001", "to": "GW-0001",  "type": "measures" }
   ]
 }
