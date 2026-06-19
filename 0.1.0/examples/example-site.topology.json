@@ -32,7 +32,8 @@
         {
           "capability": "charge_rate", "ref": 2, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
-          "control": { "protocol": "modbus", "op": "write_single", "address": 110, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
+          "distribution": "replicate",
+          "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
         }
       ]
     },
@@ -70,6 +71,27 @@
           "constraints": { "min": 0, "max": 100, "scope": "capability" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } },
           "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } }
+        }
+      ]
+    },
+    {
+      "id": "INV-0002",
+      "kind": "inverter",
+      "deviceType": "example-hybrid-inverter",
+      "attributes": { "phase": 2, "ratedW": 5000, "capacityWh": 10000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "soc", "ref": 14, "accessPath": "gw-local", "unit": "%",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 61, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "charge_rate", "ref": 15, "accessPath": "gw-local", "unit": "W",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 81, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 81, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
         }
       ]
     },
@@ -136,6 +158,7 @@
 
   "relationships": [
     { "from": "GW-0001",  "to": "INV-0001", "type": "contains" },
+    { "from": "GW-0001",  "to": "INV-0002", "type": "contains" },
     { "from": "GW-0001",  "to": "HP-0001",  "type": "contains" },
     { "from": "MTR-0001", "to": "GW-0001",  "type": "measures" }
   ]

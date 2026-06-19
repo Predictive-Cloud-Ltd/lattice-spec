@@ -13,6 +13,8 @@ export type AccessChoice = {
   chosen: boolean;
 };
 
+export type Altitude = "auto" | "aggregate" | "leaves";
+
 export type ResolveResult = {
   ok: boolean;
   side: "read" | "control";
@@ -30,12 +32,23 @@ export type ResolveResult = {
   clamped?: number;
   clampMin?: number;
   clampMaxLabel?: string;
+  // §5 control altitude & aggregation
+  strategy?: "direct" | "delegated" | "expanded";
+  planNodes?: string[];
+  distribution?: string;
+  // §6 ownership & arbitration
+  ownedNodes?: string[];
+  ownershipNote?: string;
 };
 
 const asNum = (x: unknown) => (typeof x === "number" ? x : undefined);
 
+function childrenOf(doc: Doc, nodeId: string, rel: string): string[] {
+  return (doc?.relationships ?? []).filter((r: any) => r?.from === nodeId && r?.type === rel).map((r: any) => r.to);
+}
+
 function childCount(doc: Doc, nodeId: string, rel: string): number {
-  return (doc?.relationships ?? []).filter((r: any) => r?.from === nodeId && r?.type === rel).length;
+  return childrenOf(doc, nodeId, rel).length;
 }
 
 function resolveMax(maxSpec: unknown, node: any): { value?: number; label: string } {
@@ -81,27 +94,49 @@ export function resolve(
   side: "read" | "control",
   intent: number | undefined,
   offline: Set<string>,
+  altitude: Altitude = "auto",
 ): ResolveResult {
   const offering = nodesOffering(doc, cap, side);
   if (!offering.length) {
     return { ok: false, side, accessPaths: [], message: `No node offers ${side} for "${cap}".` };
   }
 
-  // aggregate-aware route: prefer a qualifying aggregator, else the leaves
-  let best: any = null;
-  let bestPrio = -1;
+  // §5 control altitude: a qualifying aggregator can take ONE delegated command (its
+  // firmware fans out to its children); else the hub *expands* to the leaves directly.
+  let agg: any = null;
+  let aggPrio = -1;
   for (const o of offering) {
-    const agg = o.node.aggregate;
-    if (!agg?.serves) continue;
-    const over = agg.over ?? "contains";
-    const min = agg.minChildren ?? 0;
-    if (childCount(doc, o.node.id, over) >= min && (agg.priority ?? 0) >= bestPrio) {
-      best = o;
-      bestPrio = agg.priority ?? 0;
+    const a = o.node.aggregate;
+    if (!a?.serves) continue;
+    if (childCount(doc, o.node.id, a.over ?? "contains") >= (a.minChildren ?? 0) && (a.priority ?? 0) >= aggPrio) {
+      agg = o;
+      aggPrio = a.priority ?? 0;
     }
   }
-  let routeNodes = best ? [best] : offering.filter((o) => !o.node.aggregate?.serves);
-  if (!routeNodes.length) routeNodes = offering;
+  const leaves = offering.filter((o) => !o.node.aggregate?.serves);
+
+  // pick the route for the requested altitude
+  let routeNodes: any[];
+  let strategy: ResolveResult["strategy"];
+  let ownershipNote: string | undefined;
+  if (agg && (altitude === "auto" || altitude === "aggregate")) {
+    routeNodes = [agg];
+    strategy = "delegated";
+  } else {
+    routeNodes = leaves.length ? leaves : offering;
+    strategy = routeNodes.length > 1 ? "expanded" : "direct";
+    if (agg && altitude === "leaves") {
+      ownershipNote = `${agg.node.id} serves as coordinator for these — commanding the leaves directly contends with it (§6). Prefer the aggregate altitude.`;
+    } else if (!agg && altitude === "aggregate") {
+      ownershipNote = "No qualifying coordinator for this capability — falling back to per-leaf (expanded).";
+    }
+  }
+
+  // §6 ownership: the chosen altitude claims a subtree; the other altitude is then off-limits
+  const ownedNodes =
+    strategy === "delegated"
+      ? childrenOf(doc, agg.node.id, agg.node.aggregate?.over ?? "contains")
+      : routeNodes.map((o) => o.node.id);
 
   const primary = routeNodes[0];
   const node = primary.node;
@@ -129,6 +164,11 @@ export function resolve(
     routeNodeCount: routeNodes.length,
     reducer: routeNodes.length > 1 ? primary.offers[0]?.reducer ?? "mean" : primary.offers[0]?.reducer,
     accessPaths,
+    strategy,
+    planNodes: routeNodes.map((o) => o.node.id),
+    distribution: primary.offers.find((o: any) => o?.distribution)?.distribution,
+    ownedNodes,
+    ownershipNote,
   };
 
   const chosenIdx = ranked.findIndex((x: any) => !offline.has(x.ap.id));
