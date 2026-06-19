@@ -1,7 +1,7 @@
 # Lattice — Device Mapping & Sensors (near-term read scope)
 
 **Status:** Draft for discussion — 2026-06-19
-**Companions:** *Capability & Topology Model* (the model), *Control Model — Shapes + Vocabulary* (the deferred control half).
+**Companions:** *Capability & Topology Model* (the model), *Read Model — Shapes, Canonical Units, Aggregation & Derived Bindings* (the full read design this scopes a near-term subset of), *Control Model — Shapes + Vocabulary* (the deferred control half).
 
 > Maintainer steer: *"I thought the idea was just to map out the devices in the network… there are also sensors. Generically controlling them needs a common API to be defined."* This doc scopes exactly that near-term half — **discover/map devices and expose their telemetry** — which needs **no** common control API and carries none of control's complexity or risk.
 
