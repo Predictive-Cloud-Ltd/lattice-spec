@@ -8,15 +8,16 @@
 
 ---
 
-## 1. The three things control actually needs
+## 1. The four things control actually needs
 
-Control is not one shape and not one register. A usable common control API has to pin down **three** separate concerns. Conflating them is what produced the earlier mess.
+Control is not one shape and not one register. A usable common control API has to pin down **four** separate concerns. Conflating them is what produced the earlier mess.
 
 1. **Intent — *what* you want, with agreed meaning.** A defined vocabulary per device class (a battery's `target_soc` means the same thing everywhere). Without this, control is "poke a register and hope".
 2. **Shape — *how* the device accepts that intent.** Set-now, switch-now, or a forward schedule. Different devices, different shapes.
 3. **Binding — *how* it's executed** on a given provider (Modbus register, cloud CID, schedule API call). Per-provider; may be declarative (data) or imperative (code).
+4. **Scope — *which node, at what altitude*** the intent is addressed to: a single leaf device, or an aggregate (a real EMS, a gateway, or a virtual "all batteries" group) treated as a black box. Same intent, different altitude. See §5–6.
 
-A provider declares, per controllable function, an **(intent, shape, binding)** triple. The consumer (e.g. the PredBat planner) expresses intent in the declared shape; the provider executes it.
+A provider declares, per controllable function, an **(intent, shape, binding)** triple, on one or more **nodes** (the scope). The consumer (e.g. the PredBat planner) expresses intent against a node in the declared shape; Lattice resolves the altitude and the binding executes it.
 
 ---
 
@@ -62,7 +63,49 @@ Some devices cannot set one function without others (Solax `soc_target_control_m
 
 ---
 
-## 5. Conformance tiers
+## 5. Control altitude & aggregation
+
+Control isn't always addressed to a single device. The hub may want to treat a group as a **black box** — "set all batteries to charge", like an EMS — or to command **one battery directly**. Both must use the *same* intent vocabulary; only the addressed **node** differs. This is the Composite pattern: every node is a *controller for its own subtree*.
+
+- **Leaf** (one inverter/battery): controls itself → direct write.
+- **Aggregate**: controls its children as a black box. Two kinds:
+  - a **real coordinator** — a physical EMS or gateway that already coordinates its inverters (parallel-AIO sync, phase balancing);
+  - a **virtual group** — the site, or an ad-hoc "all batteries", with no physical controller.
+
+How an aggregate realises the black box (its binding **strategy**):
+
+| Strategy | Who fans out | When |
+|---|---|---|
+| **delegated** | the device itself (real coordinator) | a physical EMS/gateway exists — send it one command |
+| **expanded** | the **hub** (acting as a virtual EMS) | no coordinator — the hub issues one direct command per leaf |
+
+The consumer declares intent over a **target set** of devices (or the site) and Lattice computes a **control plan** — the fewest controller commands that cover the set:
+
+```
+resolve_control(intent, target_set):
+  cover target_set with the fewest controller nodes,
+    preferring a real coordinator that *wholly* owns a subtree (delegated),
+    else the hub over the remaining leaves (expanded);
+  a request spanning two coordinators yields two delegated commands
+    (there is no single physical black box for both);
+  each chosen node claims ownership of its subtree (§6).
+```
+
+**Default policy:** prefer the real coordinator when one exists (it encodes coordination the hub can't reproduce from outside, and commanding the units behind it instead has historically broken control); fall back to hub-expanded only where no coordinator covers the leaves. A consumer may always **override the altitude explicitly** (e.g. target one battery for a fault or an experiment). Routing knowledge lives in the topology graph, not in the consumer — the planner says "charge these", not "which unit is the controller".
+
+---
+
+## 6. Ownership & arbitration
+
+Because the same devices can be controlled at more than one altitude (the EMS *and* its batteries), the model must guarantee **exactly one controller owns a given device-subtree at a time**. Without this you get dual-control contention — two writers fighting over one inverter, which is a real, observed failure mode (e.g. an external VPP and the planner both writing the same battery).
+
+- Choosing an altitude **claims** ownership of that subtree; the levels below it are off-limits while the claim holds (you never command an EMS *and* its leaves at once).
+- Ownership is explicit and transferable: an external controller (a VPP dispatch, a manual override) can hold the claim for a window, and the planner defers to it rather than contending.
+- A claim has a holder and a scope (subtree); resolution (§5) must refuse a plan that would write into a subtree owned by someone else, surfacing the conflict instead of racing.
+
+---
+
+## 7. Conformance tiers
 
 Make non-declarative control explicitly in-spec rather than a silent gap:
 
@@ -73,30 +116,35 @@ A provider declares its tier per function. Consumers know whether control is por
 
 ---
 
-## 6. Worked examples
+## 8. Worked examples
 
 - **GivEnergy battery (gateway/Modbus):** class `battery`; `mode`/`charge_power_limit`/`target_soc`/`reserve_soc`; shape `schedule` (slot registers) or `setpoint` (immediate rate); Level 1.
 - **Fox battery (cloud):** class `battery`; same vocabulary; shape `schedule` (set_scheduler groups, applied atomically); Level 2.
 - **Solax battery (cloud):** class `battery`; control group `{mode, target_soc, *_power_limit}` → one `soc_target_control_mode` call; shape `schedule`/`setpoint` inside a group; Level 2.
 - **EV charger:** class `ev_charger`; `charge_current_limit` (setpoint) + `state` (switch); Level 1/2 per API.
 - **Immersion / relay:** class `switch`; `state{on,off}` (switch); Level 1.
+- **GivEnergy EMS / multi-AIO gateway (aggregate, §5):** a coordinator node exposing the `battery` vocabulary; **delegated** strategy — "charge all" sends one command, firmware drives the AIOs. Claims ownership of its inverter subtree.
+- **Mixed fleet with no coordinator (aggregate, §5):** a virtual "site batteries" node; **expanded** strategy — the hub issues one direct `battery.mode` command per leaf.
 
 ---
 
-## 7. How a consumer drives it (PredBat)
+## 9. How a consumer drives it (PredBat)
 
-The planner emits **intent**, not register pokes: for each controllable node, the desired `mode`/power/target — as a setpoint, switch, or schedule depending on the node's declared shape. Lattice resolves the best available access path (per the topology model) and the provider applies it (per its binding/tier). The planner never needs per-brand code; it speaks the per-class vocabulary in the declared shape.
+The planner emits **intent**, not register pokes: for a target node (a leaf, or an aggregate it treats as a black box) the desired `mode`/power/target — as a setpoint, switch, or schedule depending on the node's declared shape. Lattice resolves the altitude (§5), the best available access path (per the topology model), and ownership (§6); the provider applies it (per its binding/tier). The planner never needs per-brand or per-site code; it says "charge these batteries" and speaks the per-class vocabulary in the declared shape.
 
 ---
 
-## 8. Scope / sequencing
+## 10. Sequencing
 
-- This is the **complex, longer-term half** (per maintainer feedback: "good idea, not a short-term thing"). It should be agreed *before* control code is written — defining the per-class vocabularies + shapes + tiers across inverter/EV/thermal is real standards work and is where domain expertise matters most.
+- This is the **complex, longer-term half** (per maintainer feedback: "good idea, not a short-term thing"). It should be agreed *before* control code is written — defining the per-class vocabularies + shapes + tiers + aggregation across inverter/EV/thermal is real standards work and is where domain expertise matters most.
 - The **near-term, low-risk half is READ** — *map the devices + expose sensors* — which needs none of this (see the *Device Mapping & Sensors* doc). Control follows once this model is agreed.
 
-## 9. Open questions
+## 11. Open questions
 
 1. Slot fields for the `schedule` shape — minimal `{start, end, mode, power_limit, target_soc, reserve_soc}` vs. per-slot export limit / grid-charge flag.
 2. How modes compose with schedules (a slot's `mode` vs. a device-level `mode` switch).
 3. Vocabulary governance — namespacing, versioning, how a new device class is added.
 4. Whether `target_soc` "by time T" (deadline semantics) is a distinct intent from a schedule slot.
+5. Aggregate semantics when a coordinator only *partially* covers a target set — command the coordinator for its part + hub-expand the rest, or drop wholly to leaves?
+6. Does a delegated aggregate need per-child *feedback* (did every AIO take the command), or is the coordinator's single ack sufficient?
+7. Ownership lifecycle — how claims are acquired/released/expired, and how an external owner (VPP) advertises and hands back a claim.
