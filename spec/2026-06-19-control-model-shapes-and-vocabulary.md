@@ -56,6 +56,28 @@ A common API needs agreed semantics, and semantics are **per device class** — 
 
 Every function carries: name, unit, value domain/constraints, and the shape(s) the device supports for it. A device's **control profile** is the set of `(class.function, shape, constraints, binding)` it offers — and *only* those. (This is what fixes "rate but not start/end": a device that schedules declares the *whole* battery schedule vocabulary in the `schedule` shape, so a slot inherently carries time + power + target + mode together.)
 
+### Scheduled schemes are the primary battery control form
+
+For batteries, the control you actually want to express is a **scheme (named mode) over a time window** — *"max self-use from 16:00–19:00", "force charge 00:30–04:30", "export 17:00–19:00"* — not a stream of low-level register writes. So `battery.mode` is the **headline** control, the `schedule` shape is how it's normally expressed, and the other functions (`charge_power_limit`, `target_soc`, `reserve_soc`) are **optional refinements within a slot** — frequently *implied by the scheme itself* (self-use implies "don't grid-charge, don't force-export").
+
+A battery control plan is therefore an ordered list of `(window → scheme [+ optional refinements])`, plus a **default scheme** for any time not covered by a window. This is exactly the shape PredBat's planner already emits, and the shape a user understands.
+
+**The scheme vocabulary is the heart of the battery class — and the key piece for domain owners to fix.** A starter set (to be confirmed/extended with the maintainers):
+
+| scheme | meaning |
+|---|---|
+| `self_use` | cover load from battery/PV; don't grid-charge, don't force-export |
+| `max_self_use` | self-use, maximised (e.g. hold reserve low to use as much stored energy as possible) |
+| `force_charge` | charge (optionally to a `target_soc`, at a `charge_power_limit`), incl. from grid |
+| `force_export` / `export` | discharge to grid (at a `discharge_power_limit`) |
+| `idle` / `hold` | neither charge nor discharge (hold SoC) |
+| `backup` | reserve for outage (hold a high `reserve_soc`) |
+| `eco` / `dynamic` | vendor's adaptive default |
+
+"max self-use" vs "self-use" shows schemes may need **intensity/parameters**, not just a flat enum — open question (§11).
+
+**Scheme → device mapping is where the tiers (§7) bite.** A device with a native operating-mode register (GivEnergy Eco/Dynamic, etc.) maps a scheme declaratively (L1). A device without one *synthesises* the scheme from primitives — e.g. `self_use` = charge-enable off + discharge-enable on + no export window — which is provider code (L2). Either way the consumer just schedules `self_use`.
+
 ### Capability identity is `class.function` (decided)
 
 The **identity** of a capability — the key that decides whether two declarations are "the same thing" (and so merge, resolve, and fan out together) — is the qualified `class.function`, **not** a bare name. `battery.charge_power_limit` (W) and `ev_charger.charge_current_limit` (A) are different identities; nothing ever groups them.
@@ -152,6 +174,7 @@ The planner emits **intent**, not register pokes: for a target node (a leaf, or 
 
 1. Slot fields for the `schedule` shape — minimal `{start, end, mode, power_limit, target_soc, reserve_soc}` vs. per-slot export limit / grid-charge flag.
 2. How modes compose with schedules (a slot's `mode` vs. a device-level `mode` switch).
+2a. The **scheme vocabulary** itself — the agreed set of battery schemes (`self_use`, `max_self_use`, `force_charge`, `export`, `idle`, `backup`, …), and whether schemes are a flat enum or carry **intensity/parameters** ("max self-use" vs "self-use"). Domain-owner call.
 3. Vocabulary governance — namespacing, versioning, how a new device class is added.
 4. Whether `target_soc` "by time T" (deadline semantics) is a distinct intent from a schedule slot.
 5. Aggregate semantics when a coordinator only *partially* covers a target set — command the coordinator for its part + hub-expand the rest, or drop wholly to leaves?
