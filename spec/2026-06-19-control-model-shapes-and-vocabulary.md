@@ -1,6 +1,7 @@
 # Lattice Control Model — Shapes + Vocabulary (proposal)
 
 **Status:** Draft for discussion — 2026-06-19
+**Targets:** schema **0.2.0** — the `class.function` identity change is breaking, so this batch is cut as 0.2.0 at freeze. `0.1.0/` remains the current working draft until then (nothing external depends on it yet).
 **Resolves / supersedes:** [#3 coupled / mode / read-modify-write control](https://github.com/Predictive-Cloud-Ltd/lattice-spec/issues/3)
 **Companions:** *Capability & Topology Model* (read/topology), *Device Mapping & Sensors* (the near-term read scope).
 

@@ -1,6 +1,7 @@
 # Lattice Read Model — Shapes, Canonical Units, Aggregation & Derived Bindings
 
 **Status:** Draft for discussion — 2026-06-19
+**Targets:** schema **0.2.0** — derived bindings + canonical units are additive, cut alongside the control changes at freeze. `0.1.0/` remains the current working draft until then.
 **Companions:** *Control Model — Shapes + Vocabulary* (the mirror), *Device Mapping & Sensors* (the near-term read subset).
 
 > The read side is the **mirror image** of control. Control fans *out* (one intent → many devices); read rolls *up* (many device values → one aggregate). Same topology graph, opposite direction. This doc pins down how a heterogeneous fleet (different units, different representations, values you must *calculate*) becomes one clean, comparable read surface.
