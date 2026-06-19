@@ -107,6 +107,9 @@ function ResultView({ res }: { res: ResolveResult }) {
           </span>
         </div>
       )}
+      {res.strategy === "expanded" && res.planNodes && res.planNodes.length > 1 && (
+        <div className="rnote">↳ illustrative: the access path + binding below are shown for <code>{res.node}</code> only — each of the {res.planNodes.length} plan nodes resolves its own path/binding.</div>
+      )}
       {res.side === "control" && res.ownedNodes && res.ownedNodes.length > 0 && (
         <div className="rline">
           <span className="rk">owns</span>

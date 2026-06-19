@@ -24,29 +24,29 @@ const CATALOG: Descriptor[] = [
     aggregate: { serves: true, minChildren: 2, priority: 10, over: "contains" },
     contains: "example-hybrid-inverter",
     capabilities: [
-      { capability: "grid_power", accessPath: "gw-local", unit: "W", read: { protocol: "modbus", op: "read_input", address: 100 } },
+      { capability: "meter.grid_power", accessPath: "gw-local", unit: "W", read: { protocol: "modbus", op: "read_input", address: 100 } },
     ],
   },
   {
     key: "example-hybrid-inverter", kind: "inverter",
     dtcHi: 0x80, serialPrefix: "INV",
     capabilities: [
-      { capability: "soc", accessPath: "gw-local", unit: "%", read: { protocol: "modbus", op: "read_input", address: 60 } },
-      { capability: "charge_rate", accessPath: "gw-local", unit: "W", constraints: { min: 0, max: "rated" },
+      { capability: "battery.soc", accessPath: "gw-local", unit: "%", read: { protocol: "modbus", op: "read_input", address: 60 } },
+      { capability: "battery.charge_power_limit", accessPath: "gw-local", unit: "W", constraints: { min: 0, max: "rated" },
         read: { protocol: "modbus", op: "read_holding", address: 80 }, control: { protocol: "modbus", op: "write_single", address: 80 } },
     ],
   },
   {
     key: "example-evse", kind: "ev_charger", serialPrefix: "EVSE",
     capabilities: [
-      { capability: "charge_rate", accessPath: "gw-local", unit: "A", constraints: { min: 0, max: 32 },
+      { capability: "ev_charger.charge_current_limit", accessPath: "gw-local", unit: "A", constraints: { min: 0, max: 32 },
         control: { protocol: "modbus", op: "write_single", address: 300 } },
     ],
   },
   {
     key: "example-meter", kind: "meter", serialPrefix: "MTR",
     capabilities: [
-      { capability: "grid_voltage", accessPath: "gw-local", unit: "V", reducer: "representative", groupBy: "phase",
+      { capability: "meter.grid_voltage", accessPath: "gw-local", unit: "V", reducer: "representative", groupBy: "phase",
         read: { protocol: "modbus", op: "read_input", address: 200, count: 3 } },
     ],
   },

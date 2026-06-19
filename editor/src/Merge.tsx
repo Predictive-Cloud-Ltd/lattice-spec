@@ -11,7 +11,7 @@ const FRAG_A = `{
       "id": "GW-0001", "kind": "gateway",
       "accessPaths": [{ "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }],
       "capabilities": [
-        { "capability": "grid_power", "accessPath": "gw-local", "unit": "W",
+        { "capability": "meter.grid_power", "accessPath": "gw-local", "unit": "W",
           "read": { "protocol": "modbus", "op": "read_input", "address": 100 } }
       ]
     },
@@ -19,9 +19,9 @@ const FRAG_A = `{
       "id": "INV-0001", "kind": "inverter",
       "accessPaths": [{ "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }],
       "capabilities": [
-        { "capability": "soc", "accessPath": "gw-local", "unit": "%",
+        { "capability": "battery.soc", "accessPath": "gw-local", "unit": "%",
           "read": { "protocol": "modbus", "op": "read_input", "address": 60 } },
-        { "capability": "charge_rate", "accessPath": "gw-local", "unit": "W",
+        { "capability": "battery.charge_power_limit", "accessPath": "gw-local", "unit": "W",
           "control": { "protocol": "modbus", "op": "write_single", "address": 80 } }
       ]
     }
@@ -38,9 +38,9 @@ const FRAG_B = `{
       "id": "INV-0001", "kind": "inverter",
       "accessPaths": [{ "id": "vendor-cloud", "provider": "example-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 1 }],
       "capabilities": [
-        { "capability": "soc", "accessPath": "vendor-cloud", "unit": "%",
+        { "capability": "battery.soc", "accessPath": "vendor-cloud", "unit": "%",
           "read": { "protocol": "cloud-api", "op": "get", "address": "/v1/inverters/{id}/soc" } },
-        { "capability": "charge_rate", "accessPath": "vendor-cloud", "unit": "W",
+        { "capability": "battery.charge_power_limit", "accessPath": "vendor-cloud", "unit": "W",
           "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/commands/set-charge-rate" } }
       ]
     }

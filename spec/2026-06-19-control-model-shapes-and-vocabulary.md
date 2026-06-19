@@ -1,8 +1,8 @@
 # Lattice Control Model — Shapes + Vocabulary (proposal)
 
 **Status:** Draft for discussion — 2026-06-19
-**Targets:** schema **0.2.0** — the `class.function` identity change is breaking, so this batch is cut as 0.2.0 at freeze. `0.1.0/` remains the current working draft until then (nothing external depends on it yet).
-**Resolves / supersedes:** [#3 coupled / mode / read-modify-write control](https://github.com/Predictive-Cloud-Ltd/lattice-spec/issues/3)
+**Targets:** schema **0.2.0** — the `class.function` identity change is breaking. These changes are being prototyped **in** the mutable `0.1.0/` draft (so `0.1.0/` files *do* change as we iterate) and will be cut as a frozen `0.2.0/` once the design is agreed. `0.1.0/` is pre-freeze and not yet depended on externally; treat it as the live draft, not a released version.
+**Proposed resolution for (not yet normative):** [#3 coupled / mode / read-modify-write control](https://github.com/Predictive-Cloud-Ltd/lattice-spec/issues/3). This doc is **accepted design direction**, not normative implementation — control groups, read-modify-write and ownership are specified here as prose, not yet as schema. #3 stays open until those have schema-level shape (or are explicitly accepted as direction-only).
 **Companions:** *Capability & Topology Model* (read/topology), *Device Mapping & Sensors* (the near-term read scope).
 
 > Motivated by review feedback while implementing control against real inverters (GivEnergy, Solis, Fox, Solax): a first attempt routed **independent per-capability writes** (`charge_rate`, then `target_soc`…). That was wrong twice over — it's an arbitrary subset ("why a rate but not a start/end time?"), and it has no agreed meaning ("who knows what charge_rate relates to"). A second idea — make everything a **schedule** (like Fox) — is also wrong: **not all devices have a schedule** (a relay, an immersion heater, a heat-pump setpoint, a "charge now at 16 A" EV). This doc defines a control model that fits both.
