@@ -55,6 +55,14 @@ A common API needs agreed semantics, and semantics are **per device class** — 
 
 Every function carries: name, unit, value domain/constraints, and the shape(s) the device supports for it. A device's **control profile** is the set of `(class.function, shape, constraints, binding)` it offers — and *only* those. (This is what fixes "rate but not start/end": a device that schedules declares the *whole* battery schedule vocabulary in the `schedule` shape, so a slot inherently carries time + power + target + mode together.)
 
+### Capability identity is `class.function` (decided)
+
+The **identity** of a capability — the key that decides whether two declarations are "the same thing" (and so merge, resolve, and fan out together) — is the qualified `class.function`, **not** a bare name. `battery.charge_power_limit` (W) and `ev_charger.charge_current_limit` (A) are different identities; nothing ever groups them.
+
+This matters because a flat name silently conflates unrelated controls. Concretely: in the editor's example, a battery inverter and an EV charger both used a bare `charge_rate` — so "charge all batteries" swept the EV charger in and tried to set its current to a battery wattage. The `unit` field (W vs A) was present in the doc but isn't part of identity, so it didn't help. Qualifying by class makes the collision impossible by construction: the EV charger simply doesn't have `battery.charge_power_limit`.
+
+The class reflects the **function's** domain, not the node's kind — a `gateway` node may offer `battery.charge_power_limit` (as the aggregate control point for the batteries it coordinates) *and* `meter.grid_power` (its own grid sensing). The same convention applies to reads/sensors (`battery.soc`, `meter.grid_voltage`). Vendor/domain extensions still namespace further (`x-acme:foo`); a capability name still MUST NOT name a vendor or device.
+
 ---
 
 ## 4. Atomicity / coupling (the #3 case)
