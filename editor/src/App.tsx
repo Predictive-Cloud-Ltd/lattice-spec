@@ -28,7 +28,9 @@ export default function App() {
     ? { cls: "bad", msg: `Invalid JSON — ${parsed.err}` }
     : result?.ok
       ? { cls: "ok", msg: "✓ Valid Lattice document" }
-      : { cls: "bad", msg: `✗ ${result?.errors.length ?? 0} schema error(s)` };
+      : result?.schemaErrors.length
+        ? { cls: "bad", msg: `✗ ${result.schemaErrors.length} schema error(s)` }
+        : { cls: "bad", msg: `✗ ${result?.conformanceErrors.length ?? 0} conformance error(s)` };
 
   const doc = parsed.obj as { nodes?: any[] } | null;
   const nodes = Array.isArray(doc?.nodes) ? doc!.nodes : [];
