@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { resolve, listCapabilities, listAccessPaths, type ResolveResult } from "./resolve-engine";
+import { resolve, listCapabilities, listAccessPaths, type ResolveResult, type Altitude } from "./resolve-engine";
 
 export function Resolver({ doc }: { doc: unknown }) {
   const caps = useMemo(() => listCapabilities(doc), [doc]);
@@ -8,12 +8,13 @@ export function Resolver({ doc }: { doc: unknown }) {
   const [cap, setCap] = useState<string>("");
   const [side, setSide] = useState<"read" | "control">("control");
   const [value, setValue] = useState<string>("6000");
+  const [altitude, setAltitude] = useState<Altitude>("auto");
   const [offline, setOffline] = useState<Set<string>>(new Set());
 
   const effCap = cap && caps.includes(cap) ? cap : caps[0] ?? "";
   const res = useMemo<ResolveResult | null>(
-    () => (effCap ? resolve(doc, effCap, side, side === "control" ? Number(value) : undefined, offline) : null),
-    [doc, effCap, side, value, offline],
+    () => (effCap ? resolve(doc, effCap, side, side === "control" ? Number(value) : undefined, offline, altitude) : null),
+    [doc, effCap, side, value, offline, altitude],
   );
 
   if (!caps.length) return <div className="muted small">Load a valid document to resolve capabilities.</div>;
@@ -39,6 +40,13 @@ export function Resolver({ doc }: { doc: unknown }) {
         </div>
         {side === "control" && (
           <input className="val" value={value} onChange={(e) => setValue(e.target.value)} aria-label="intent value" />
+        )}
+        {side === "control" && (
+          <div className="seg" role="group" aria-label="control altitude">
+            {(["auto", "aggregate", "leaves"] as Altitude[]).map((a) => (
+              <button key={a} className={altitude === a ? "on" : ""} onClick={() => setAltitude(a)}>{a}</button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -85,6 +93,30 @@ function ResultView({ res }: { res: ResolveResult }) {
       </div>
       {res.fellBack && res.ok && <div className="rnote">↳ preferred path offline — <strong>fell back</strong> to <code>{res.chosenAccessPath}</code></div>}
       {!res.ok && res.message && <div className="rnote bad">{res.message}</div>}
+
+      {res.side === "control" && res.strategy && (
+        <div className="rline">
+          <span className="rk">altitude</span>
+          <span>
+            <strong>{res.strategy}</strong>
+            <span className="muted">
+              {res.strategy === "delegated" ? " — one command, the coordinator fans out" : res.strategy === "expanded" ? " — hub fans out to each leaf" : " — single device"}
+            </span>
+            {res.distribution ? <span className="muted"> · distribute: <code>{res.distribution}</code></span> : null}
+            {res.planNodes && res.planNodes.length ? <span className="muted"> · command: <strong>{res.planNodes.join(", ")}</strong></span> : null}
+          </span>
+        </div>
+      )}
+      {res.strategy === "expanded" && res.planNodes && res.planNodes.length > 1 && (
+        <div className="rnote">↳ illustrative: the access path + binding below are shown for <code>{res.node}</code> only — each of the {res.planNodes.length} plan nodes resolves its own path/binding.</div>
+      )}
+      {res.side === "control" && res.ownedNodes && res.ownedNodes.length > 0 && (
+        <div className="rline">
+          <span className="rk">owns</span>
+          <span className="muted">{res.ownedNodes.join(", ")} <span className="small">— claimed subtree, not separately controllable while held (§6)</span></span>
+        </div>
+      )}
+      {res.ownershipNote && <div className="rnote">⚠ {res.ownershipNote}</div>}
 
       {res.side === "control" && res.clamped != null && (
         <div className="rline">

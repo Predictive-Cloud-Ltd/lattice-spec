@@ -26,13 +26,14 @@
       "aggregate": { "serves": true, "minChildren": 2, "priority": 10, "over": "contains" },
       "capabilities": [
         {
-          "capability": "grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
+          "capability": "meter.grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
           "read": { "protocol": "modbus", "op": "read_input", "address": 100, "encoding": "i16", "transform": { "kind": "identity" } }
         },
         {
-          "capability": "charge_rate", "ref": 2, "accessPath": "gw-local", "unit": "W",
+          "capability": "battery.charge_power_limit", "ref": 2, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
-          "control": { "protocol": "modbus", "op": "write_single", "address": 110, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
+          "distribution": "replicate",
+          "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
         }
       ]
     },
@@ -47,29 +48,50 @@
       ],
       "capabilities": [
         {
-          "capability": "soc", "ref": 10, "accessPath": "gw-local", "unit": "%",
+          "capability": "battery.soc", "ref": 10, "accessPath": "gw-local", "unit": "%",
           "read": { "protocol": "modbus", "op": "read_input", "address": 60, "encoding": "u16", "transform": { "kind": "identity" } }
         },
         {
-          "capability": "capacity", "ref": 11, "accessPath": "gw-local", "unit": "Wh",
+          "capability": "battery.capacity", "ref": 11, "accessPath": "gw-local", "unit": "Wh",
           "read": { "protocol": "modbus", "op": "read_holding", "address": 70, "encoding": "u32_hl", "transform": { "kind": "identity" } }
         },
         {
-          "capability": "charge_rate", "ref": 12, "accessPath": "gw-local", "unit": "W",
+          "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } },
           "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
         },
         {
-          "capability": "charge_rate", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
+          "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/commands/set-charge-rate", "transform": { "kind": "identity" } }
         },
         {
-          "capability": "target_soc", "ref": 13, "accessPath": "gw-local", "unit": "%",
+          "capability": "battery.target_soc", "ref": 13, "accessPath": "gw-local", "unit": "%",
           "constraints": { "min": 0, "max": 100, "scope": "capability" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } },
           "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } }
+        }
+      ]
+    },
+    {
+      "id": "INV-0002",
+      "kind": "inverter",
+      "deviceType": "example-hybrid-inverter",
+      "attributes": { "phase": 2, "ratedW": 5000, "capacityWh": 10000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "battery.soc", "ref": 14, "accessPath": "gw-local", "unit": "%",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 61, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 15, "accessPath": "gw-local", "unit": "W",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 81, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 81, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
         }
       ]
     },
@@ -82,11 +104,11 @@
       ],
       "capabilities": [
         {
-          "capability": "power", "ref": 20, "accessPath": "ocpp", "unit": "W",
+          "capability": "ev_charger.power", "ref": 20, "accessPath": "ocpp", "unit": "W",
           "read": { "protocol": "ocpp", "op": "get", "address": "MeterValues/Power.Active.Import", "transform": { "kind": "identity" } }
         },
         {
-          "capability": "charge_rate", "ref": 21, "accessPath": "ocpp", "unit": "A",
+          "capability": "ev_charger.charge_current_limit", "ref": 21, "accessPath": "ocpp", "unit": "A",
           "constraints": { "min": 0, "max": 32, "scope": "node" },
           "control": { "protocol": "ocpp", "op": "post", "address": "SetChargingProfile", "transform": { "kind": "identity" } }
         }
@@ -101,7 +123,7 @@
       ],
       "capabilities": [
         {
-          "capability": "grid_voltage", "ref": 30, "accessPath": "gw-local", "unit": "V",
+          "capability": "meter.grid_voltage", "ref": 30, "accessPath": "gw-local", "unit": "V",
           "reducer": "representative", "groupBy": "phase",
           "read": { "protocol": "modbus", "op": "read_input", "address": 200, "count": 3, "encoding": "u16_vec", "transform": { "kind": "scale", "num": 1, "den": 10 } }
         }
@@ -136,6 +158,7 @@
 
   "relationships": [
     { "from": "GW-0001",  "to": "INV-0001", "type": "contains" },
+    { "from": "GW-0001",  "to": "INV-0002", "type": "contains" },
     { "from": "GW-0001",  "to": "HP-0001",  "type": "contains" },
     { "from": "MTR-0001", "to": "GW-0001",  "type": "measures" }
   ]
