@@ -1,6 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkSemanticInvariants } from "../src/conformance.js";
+import { checkSemanticInvariants, collectExtensionTransformKinds } from "../src/conformance.js";
+
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const schemaPath = resolve(here, "..", "..", "0.1.0", "topology-capability-doc.schema.json");
+const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+const ajvT = new Ajv2020({ allErrors: true, strict: false });
+addFormats(ajvT);
+ajvT.addSchema(schema);
+const validateTransform = ajvT.compile({ $ref: schema.$id + "#/$defs/transform" });
 
 // Minimal schema-valid building blocks the checker can reason about.
 const baseNode = { id: "N1", kind: "inverter" };
@@ -159,4 +173,78 @@ test("#8 an aggregator below its minChildren threshold does not qualify (no fals
     }),
   );
   assert.ok(!has(errors, "aggregate"), `unexpected aggregate error: ${errors.join("; ")}`);
+});
+
+test("transform: a vendor kind like GE_RATE_HALF is rejected", () => {
+  assert.equal(validateTransform({ kind: "GE_RATE_HALF" }), false);
+});
+
+test("transform: a namespaced x-* kind is allowed", () => {
+  assert.equal(validateTransform({ kind: "x-acme:weird" }), true);
+});
+
+test("transform: ratio accepts a ref param with a factor", () => {
+  assert.equal(validateTransform({ kind: "ratio", num: { ref: "capacity", factor: 0.5 }, den: 50 }), true);
+});
+
+test("transform: pipeline accepts nested steps", () => {
+  assert.equal(
+    validateTransform({ kind: "pipeline", steps: [{ kind: "ratio", num: 1, den: 10 }, { kind: "clamp", max: { ref: "rated_power" } }] }),
+    true,
+  );
+});
+
+test("transform ref must resolve to a declared node parameter", () => {
+  const errors = checkSemanticInvariants(
+    site({
+      nodes: [{
+        id: "N1", kind: "inverter",
+        accessPaths: [{ id: "ap", provider: "p" }],
+        capabilities: [{
+          capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", unit: "W",
+          read: { protocol: "modbus", address: 1, transform: { kind: "ratio", num: { ref: "rated_power" }, den: 100 } },
+        }],
+      }],
+    }),
+  );
+  assert.ok(has(errors, 'transform ref "rated_power" has no matching node parameter'));
+});
+
+test("a declared node parameter satisfies the ref", () => {
+  const errors = checkSemanticInvariants(
+    site({
+      nodes: [{
+        id: "N1", kind: "inverter", parameters: { rated_power: 5000 },
+        accessPaths: [{ id: "ap", provider: "p" }],
+        capabilities: [{
+          capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", unit: "W",
+          read: { protocol: "modbus", address: 1, transform: { kind: "ratio", num: { ref: "rated_power" }, den: 100 } },
+        }],
+      }],
+    }),
+  );
+  assert.equal(has(errors, "has no matching node parameter"), false);
+});
+
+test("extension transform kinds are reported", () => {
+  const notes = collectExtensionTransformKinds(
+    site({
+      nodes: [{
+        id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+        capabilities: [{
+          capability: "battery.soc", ref: 1, accessPath: "ap", unit: "%",
+          read: { protocol: "modbus", address: 1, transform: { kind: "x-acme:weird" } },
+        }],
+      }],
+    }),
+  );
+  assert.ok(notes.some((n) => n.includes('x-acme:weird')));
+});
+
+test("core transform kinds are not reported", () => {
+  const notes = collectExtensionTransformKinds(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.soc", ref: 1, accessPath: "ap", unit: "%", read: { protocol: "modbus", address: 1, transform: { kind: "identity" } } }] }] }),
+  );
+  assert.deepEqual(notes, []);
 });

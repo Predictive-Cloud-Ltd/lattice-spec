@@ -43,6 +43,25 @@ export type ResolveResult = {
 
 const asNum = (x: unknown) => (typeof x === "number" ? x : undefined);
 
+function fmtParam(v: unknown): string {
+  if (v && typeof v === "object" && "ref" in (v as any)) {
+    const r = v as { ref: string; factor?: number };
+    return r.factor != null ? `ref ${r.ref}×${r.factor}` : `ref ${r.ref}`;
+  }
+  return String(v);
+}
+
+export function formatTransform(t: any): string | undefined {
+  if (!t || typeof t !== "object" || typeof t.kind !== "string") return undefined;
+  if (t.kind === "pipeline") {
+    const steps = Array.isArray(t.steps) ? t.steps.map(formatTransform).filter(Boolean) : [];
+    return `pipeline[${steps.join(", ")}]`;
+  }
+  const keys = ["num", "den", "scale", "offset", "min", "max"].filter((k) => t[k] != null);
+  if (!keys.length) return t.kind;
+  return `${t.kind}(${keys.map((k) => `${k}=${fmtParam(t[k])}`).join(", ")})`;
+}
+
 function childrenOf(doc: Doc, nodeId: string, rel: string): string[] {
   return (doc?.relationships ?? []).filter((r: any) => r?.from === nodeId && r?.type === rel).map((r: any) => r.to);
 }
@@ -183,7 +202,7 @@ export function resolve(
 
   const chosenOffer = ranked[chosenIdx].offer;
   const b = side === "read" ? chosenOffer.read : chosenOffer.control;
-  if (b) result.binding = { protocol: b.protocol, op: b.op, address: b.address, transform: b.transform?.kind };
+  if (b) result.binding = { protocol: b.protocol, op: b.op, address: b.address, transform: formatTransform(b.transform) };
   result.unit = chosenOffer.unit;
 
   if (side === "control" && intent != null && !Number.isNaN(intent)) {

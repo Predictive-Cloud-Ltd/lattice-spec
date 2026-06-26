@@ -36,6 +36,7 @@
         "kind": { "$ref": "#/$defs/nodeKind" },
         "deviceType": { "type": "string", "description": "Optional key referencing a deviceTypes[] descriptor." },
         "attributes": { "$ref": "#/$defs/attributes" },
+        "parameters": { "$ref": "#/$defs/nodeParameters" },
         "accessPaths": { "type": "array", "items": { "$ref": "#/$defs/accessPath" }, "description": "Ways this producer can reach the node. The consumer merges + ranks all producers' access paths to the same id." },
         "aggregate": { "$ref": "#/$defs/aggregate" },
         "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } }
@@ -131,11 +132,47 @@
       "type": "object",
       "required": ["kind"],
       "additionalProperties": true,
-      "description": "Named, parameterised value transform (raw <-> engineering units). 'kind' values beyond the core set are vendor/adapter extensions (namespaced). Vendor-specificity is allowed HERE (and in bindings/deviceType keys) — never in capability names.",
+      "description": "Named, parameterised value transform (raw <-> engineering units). Core kinds are GENERIC; vendor-specifics live in a binding's parameters (e.g. a `ref` to a node parameter), or — as a last resort — a namespaced `x-<vendor>:` extension kind. A vendor name MUST NOT appear as a core kind (same rule as capability names).",
       "properties": {
-        "kind": { "type": "string", "examples": ["identity", "scale", "negate_scale", "ratio", "hhmm", "rate_percent", "capacity_ratio"] },
-        "num": { "type": "number" },
-        "den": { "type": "number" }
+        "kind": {
+          "description": "A core registry kind, or a namespaced `x-<vendor>:` extension.",
+          "anyOf": [
+            { "enum": ["identity", "affine", "ratio", "negate", "clamp", "hhmm", "pipeline"] },
+            { "type": "string", "pattern": "^x-[^:]+:.+$" }
+          ]
+        },
+        "num": { "$ref": "#/$defs/valueOrRef" },
+        "den": { "$ref": "#/$defs/valueOrRef" },
+        "scale": { "$ref": "#/$defs/valueOrRef" },
+        "offset": { "$ref": "#/$defs/valueOrRef" },
+        "min": { "$ref": "#/$defs/valueOrRef" },
+        "max": { "$ref": "#/$defs/valueOrRef" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/transform" }, "description": "pipeline steps, applied left-to-right." }
+      }
+    },
+    "valueOrRef": {
+      "description": "A transform parameter: a literal number, or a reference to a declared node parameter with an optional constant factor.",
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "additionalProperties": false,
+          "properties": {
+            "ref": { "type": "string", "description": "Name of a node `parameters` entry; resolved at execution time." },
+            "factor": { "type": "number", "description": "Constant multiplier on the referenced value (e.g. capacity × 0.5)." }
+          }
+        }
+      ]
+    },
+    "nodeParameters": {
+      "type": "object",
+      "description": "Already-canonical node values a transform `ref` resolves against at execution time. A referenced value must itself be resolvable from a non-referencing binding (no cycles, which holds by construction while parameters are literals); if unavailable at runtime the binding yields no value (fail-closed).",
+      "additionalProperties": { "type": "number" },
+      "properties": {
+        "capacity": { "type": "number", "description": "Wh" },
+        "rated_power": { "type": "number", "description": "W" },
+        "nominal_voltage": { "type": "number", "description": "V" }
       }
     },
     "encoding": { "type": "string", "examples": ["u16", "i16", "u32_hl", "i32_hl", "u16_vec"] },
