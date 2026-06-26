@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkSemanticInvariants } from "../src/conformance.js";
+import { checkSemanticInvariants, collectExtensionTransformKinds } from "../src/conformance.js";
 
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -224,4 +224,27 @@ test("a declared node parameter satisfies the ref", () => {
     }),
   );
   assert.equal(has(errors, "has no matching node parameter"), false);
+});
+
+test("extension transform kinds are reported", () => {
+  const notes = collectExtensionTransformKinds(
+    site({
+      nodes: [{
+        id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+        capabilities: [{
+          capability: "battery.soc", ref: 1, accessPath: "ap", unit: "%",
+          read: { protocol: "modbus", address: 1, transform: { kind: "x-acme:weird" } },
+        }],
+      }],
+    }),
+  );
+  assert.ok(notes.some((n) => n.includes('x-acme:weird')));
+});
+
+test("core transform kinds are not reported", () => {
+  const notes = collectExtensionTransformKinds(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.soc", ref: 1, accessPath: "ap", unit: "%", read: { protocol: "modbus", address: 1, transform: { kind: "identity" } } }] }] }),
+  );
+  assert.deepEqual(notes, []);
 });

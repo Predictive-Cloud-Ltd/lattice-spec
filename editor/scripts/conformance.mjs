@@ -3,7 +3,7 @@ import addFormats from "ajv-formats";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkSemanticInvariants, SPEC_VERSION } from "../src/conformance.js";
+import { checkSemanticInvariants, collectExtensionTransformKinds, SPEC_VERSION } from "../src/conformance.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const editor = resolve(here, "..");
@@ -47,6 +47,9 @@ for (const examplePath of examples) {
     failed = true;
     console.error(`not ok ${label}`);
     for (const error of errors) console.error(`  - ${error}`);
+  }
+  for (const note of collectExtensionTransformKinds(doc)) {
+    console.log(`# note ${label}: ${note}`);
   }
 }
 
