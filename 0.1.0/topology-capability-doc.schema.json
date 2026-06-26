@@ -131,12 +131,38 @@
       "type": "object",
       "required": ["kind"],
       "additionalProperties": true,
-      "description": "Named, parameterised value transform (raw <-> engineering units). 'kind' values beyond the core set are vendor/adapter extensions (namespaced). Vendor-specificity is allowed HERE (and in bindings/deviceType keys) — never in capability names.",
+      "description": "Named, parameterised value transform (raw <-> engineering units). Core kinds are GENERIC; vendor-specifics live in a binding's parameters (e.g. a `ref` to a node parameter), or — as a last resort — a namespaced `x-<vendor>:` extension kind. A vendor name MUST NOT appear as a core kind (same rule as capability names).",
       "properties": {
-        "kind": { "type": "string", "examples": ["identity", "scale", "negate_scale", "ratio", "hhmm", "rate_percent", "capacity_ratio"] },
-        "num": { "type": "number" },
-        "den": { "type": "number" }
+        "kind": {
+          "description": "A core registry kind, or a namespaced `x-<vendor>:` extension.",
+          "anyOf": [
+            { "enum": ["identity", "affine", "ratio", "negate", "clamp", "hhmm", "pipeline"] },
+            { "type": "string", "pattern": "^x-[^:]+:.+$" }
+          ]
+        },
+        "num": { "$ref": "#/$defs/valueOrRef" },
+        "den": { "$ref": "#/$defs/valueOrRef" },
+        "scale": { "$ref": "#/$defs/valueOrRef" },
+        "offset": { "$ref": "#/$defs/valueOrRef" },
+        "min": { "$ref": "#/$defs/valueOrRef" },
+        "max": { "$ref": "#/$defs/valueOrRef" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/transform" }, "description": "pipeline steps, applied left-to-right." }
       }
+    },
+    "valueOrRef": {
+      "description": "A transform parameter: a literal number, or a reference to a declared node parameter with an optional constant factor.",
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "additionalProperties": false,
+          "properties": {
+            "ref": { "type": "string", "description": "Name of a node `parameters` entry; resolved at execution time." },
+            "factor": { "type": "number", "description": "Constant multiplier on the referenced value (e.g. capacity × 0.5)." }
+          }
+        }
+      ]
     },
     "encoding": { "type": "string", "examples": ["u16", "i16", "u32_hl", "i32_hl", "u16_vec"] },
     "reducer": { "type": "string", "enum": ["direct", "sum", "mean", "min", "max", "spread", "representative"], "description": "How multiple read sources (or vector elements) combine. 'representative' = redundant value, read one. 'spread' = max-min (e.g. cell imbalance)." },

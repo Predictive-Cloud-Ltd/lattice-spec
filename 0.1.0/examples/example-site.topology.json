@@ -33,7 +33,7 @@
           "capability": "battery.charge_power_limit", "ref": 2, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "distribution": "replicate",
-          "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
+          "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
         }
       ]
     },
@@ -58,8 +58,8 @@
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
-          "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } },
-          "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
+          "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } },
+          "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
         },
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
@@ -90,8 +90,8 @@
         {
           "capability": "battery.charge_power_limit", "ref": 15, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
-          "read":    { "protocol": "modbus", "op": "read_holding", "address": 81, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } },
-          "control": { "protocol": "modbus", "op": "write_single", "address": 81, "encoding": "u16", "transform": { "kind": "scale", "num": 10, "den": 1 } }
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 81, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 81, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
         }
       ]
     },
@@ -125,7 +125,7 @@
         {
           "capability": "meter.grid_voltage", "ref": 30, "accessPath": "gw-local", "unit": "V",
           "reducer": "representative", "groupBy": "phase",
-          "read": { "protocol": "modbus", "op": "read_input", "address": 200, "count": 3, "encoding": "u16_vec", "transform": { "kind": "scale", "num": 1, "den": 10 } }
+          "read": { "protocol": "modbus", "op": "read_input", "address": 200, "count": 3, "encoding": "u16_vec", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
         }
       ]
     },
@@ -140,7 +140,7 @@
       "capabilities": [
         {
           "capability": "temperature", "ref": 40, "accessPath": "gw-local", "unit": "degC",
-          "read": { "protocol": "modbus", "op": "read_input", "address": 300, "encoding": "i16", "transform": { "kind": "scale", "num": 1, "den": 10 } }
+          "read": { "protocol": "modbus", "op": "read_input", "address": 300, "encoding": "i16", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
         },
         {
           "capability": "power", "ref": 41, "accessPath": "gw-local", "unit": "W",
@@ -149,8 +149,8 @@
         {
           "capability": "target_temperature", "ref": 42, "accessPath": "gw-local", "unit": "degC",
           "constraints": { "min": 15, "max": 60, "scope": "capability" },
-          "read":    { "protocol": "modbus", "op": "read_holding", "address": 304, "encoding": "u16", "transform": { "kind": "scale", "num": 1, "den": 10 } },
-          "control": { "protocol": "modbus", "op": "write_single", "address": 304, "encoding": "u16", "transform": { "kind": "scale", "num": 1, "den": 10 } }
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
         }
       ]
     }
