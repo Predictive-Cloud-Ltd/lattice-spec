@@ -15,6 +15,8 @@ const ajvT = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajvT);
 ajvT.addSchema(schema);
 const validateTransform = ajvT.compile({ $ref: schema.$id + "#/$defs/transform" });
+const validateOffer = ajvT.compile({ $ref: schema.$id + "#/$defs/capabilityOffer" });
+const validateBinding = ajvT.compile({ $ref: schema.$id + "#/$defs/binding" });
 
 // Minimal schema-valid building blocks the checker can reason about.
 const baseNode = { id: "N1", kind: "inverter" };
@@ -247,4 +249,28 @@ test("core transform kinds are not reported", () => {
       capabilities: [{ capability: "battery.soc", ref: 1, accessPath: "ap", unit: "%", read: { protocol: "modbus", address: 1, transform: { kind: "identity" } } }] }] }),
   );
   assert.deepEqual(notes, []);
+});
+
+test("capabilityOffer: shape accepts the closed set", () => {
+  for (const s of ["setpoint", "switch", "schedule"]) {
+    assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "modbus", address: 1 }, shape: s, tier: 1 }), true, s);
+  }
+});
+
+test("capabilityOffer: an unknown shape is rejected", () => {
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "modbus", address: 1 }, shape: "wobble", tier: 1 }), false);
+});
+
+test("capabilityOffer: tier is constrained to 1|2 and controlGroup is a string", () => {
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "modbus", address: 1 }, shape: "switch", tier: 3 }), false);
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "modbus", address: 1 }, shape: "switch", tier: 2, controlGroup: "soc_target" }), true);
+});
+
+test("capabilityOffer: the old schedule boolean is no longer a known property", () => {
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "modbus", address: 1 }, shape: "schedule", tier: 1, schedule: true }), false);
+});
+
+test("binding: readModifyWrite is a boolean", () => {
+  assert.equal(validateBinding({ protocol: "cloud-api", address: "/x", readModifyWrite: true }), true);
+  assert.equal(validateBinding({ protocol: "cloud-api", address: "/x", readModifyWrite: "yes" }), false);
 });
