@@ -300,6 +300,20 @@ test("controlGroup requires a control binding", () => {
   assert.ok(has(errors, 'controlGroup "g" but no control binding'));
 });
 
+test("transform: round accepts trunc/half_up/half_even", () => {
+  for (const r of ["trunc", "half_up", "half_even"]) {
+    assert.equal(validateTransform({ kind: "ratio", num: 100, den: 5000, round: r }), true, r);
+  }
+});
+
+test("transform: an unknown round mode is rejected", () => {
+  assert.equal(validateTransform({ kind: "ratio", num: 1, den: 2, round: "ceil" }), false);
+});
+
+test("transform: round is optional (absent is valid, defaults to trunc)", () => {
+  assert.equal(validateTransform({ kind: "ratio", num: 1, den: 10 }), true);
+});
+
 test("ref-resolution and x-* reporting recurse through a control binding's pipeline.steps", () => {
   const doc = site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
     capabilities: [{ capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", shape: "setpoint", tier: 1,
