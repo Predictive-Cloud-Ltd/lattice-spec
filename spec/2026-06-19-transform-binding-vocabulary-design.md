@@ -45,6 +45,8 @@ A small, fixed set of generic kinds. `0.2.0/` declares these normatively (name +
 
 Encodings (`u16`, `i16`, `u32_hl`, `u16_vec`, …) stay a separate `binding.encoding` concern — decode-then-transform. No vendor encodings.
 
+**Rounding.** The dividing kinds (`ratio`, `affine`) take an optional `round` mode — `trunc` (default: integer division toward zero, the existing behaviour), `half_up` (round half away from zero), or `half_even` (banker's). This is the piece that lets device registers which **round half-up** be expressed generically rather than as vendor kinds: GivEnergy's rate-cap registers round half-up because the firmware treats only the *exact* maximum as "unrestricted", so a truncated near-max value snaps back to the true rate. `round: half_up` reproduces that exactly. (Added in PR-T2.)
+
 > Deliberately *not* a general expression DSL. `pipeline` over a fixed kind set covers observed devices; a free-form formula language is the "derived binding" escape hatch (§5), kept narrow.
 
 ## 4. Parameter references (the real fix)
@@ -71,20 +73,20 @@ When a value is calculated from **more than one** input (`Ah_register × voltage
 - Vendor/adapter long tail: a **namespaced** `x-<vendor>:<name>` kind, used **only** when a device's conversion cannot be expressed by the core kinds + refs. Discouraged; a consumer may reject unknown extension kinds. (Same status as OpenAPI custom formats.)
 - The 0.1.0 schema wording **changes** from "vendor-specificity is allowed here" to: *core kinds are generic; vendor-specifics live in binding parameters, or as a namespaced extension kind of last resort.*
 
-## 7. Worked proof — every gateway `Transform::GE_*` → generic core
+## 7. Worked proof — gateway `Transform::GE_*` → generic core (corrected)
 
-The reference gateway producer's enum maps onto the core registry with **zero vendor kinds left**:
+**Correction (PR-T2, after reading the gateway code + parity tests).** The original claim that *every* `GE_*` maps to the generic core was over-simplified: it assumed the only special thing was the capacity-ref. Reading `rate_convert.h` and `test_topology_parity`, two of the three genuinely genericize **once `round: half_up` exists** (§3); the third carries a device-safety fail-safe that is *not* a transform and stays a namespaced extension (per the §6 extension policy). The mapping is:
 
 | Gateway enum | Generic core expression |
 |---|---|
 | `IDENTITY` | `{ kind: identity }` |
 | `NEGATE_SCALE` (e.g. batt power) | `{ kind: ratio, num: <negative literal>, den }` (negative `num`), or `{ kind: pipeline, steps: [ratio, negate] }` |
 | `HHMM` | `{ kind: hhmm }` |
-| `GE_CAPACITY` (HR55: ×317 if "CH" else ×51.2) | `{ kind: ratio, num: <per-device-type literal>, den: <…> }` — the **descriptor** for each device type carries the right numbers; the condition is resolved at descriptor selection, not in the transform |
-| `GE_RATE_FULL` (HR313/314: raw×rated/100) | `{ kind: ratio, num: { ref: "rated_power" }, den: 100 }` |
-| `GE_RATE_HALF` (HR111/112: raw×(capacity/2)/50, clamp to rated) | `{ kind: pipeline, steps: [ { kind: ratio, num: { ref: "capacity", factor: 0.5 }, den: 50 }, { kind: clamp, max: { ref: "rated_power" } } ] }` |
+| `GE_CAPACITY` (HR55: ×317 if "CH" else ×51.2) | `{ kind: ratio, num: <per-device-type literal>, den: <…> }` — the **descriptor** per device type carries the right numbers; the CH-vs-not condition is resolved at descriptor selection, not in the transform |
+| `GE_RATE_FULL` (HR313/314: read raw×rated/100 trunc; write watts→% **round half-up**, clamp 100) | read `{ kind: ratio, num: { ref: "rated_power" }, den: 100 }`; write `{ kind: pipeline, steps: [ { kind: ratio, num: 100, den: { ref: "rated_power" }, round: half_up }, { kind: clamp, max: 100 } ] }` |
+| `GE_RATE_HALF` (HR111/112) | **STAYS `x-givenergy:rate_half`** — beyond `round: half_up`, it scales by battery half-capacity AND carries an irreducible **fail-safe**: when capacity is unknown (`bat_half_w==0`) it writes 50 = *unrestricted* (never an under-scaled guess), and clamps to the register max 50. That fail-safe is device-safety behaviour, not a value transform, so per §6 it is a legitimate namespaced extension of last resort — not core. |
 
-No `GE_` token survives; GivEnergy-ness is entirely the *numbers* and the *refs* in the binding params.
+So the rule holds in spirit — **no vendor name in a *core* kind** — but honestly: `GE_RATE_FULL`/`GE_CAPACITY` become core (with `round` + refs + per-family literals), and `GE_RATE_HALF` is an explicit `x-givenergy:*` extension. GivEnergy-ness is the *numbers*, the *refs*, the *round mode*, and — for the one irreducible case — a named extension.
 
 ## 8. Schema delta (0.2.0)
 
