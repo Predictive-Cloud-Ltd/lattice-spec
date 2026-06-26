@@ -106,7 +106,18 @@
         "groupBy": { "type": "string", "description": "Attribute name partitioning a multi-element read into per-group results (e.g. 'phase' for grid voltage)." },
         "distribution": { "$ref": "#/$defs/distribution" },
         "constraints": { "$ref": "#/$defs/constraints" },
-        "schedule": { "type": "boolean", "default": false, "description": "true if the control payload is a time-indexed plan (windows/profile), not a scalar." }
+        "shape": {
+          "enum": ["setpoint", "switch", "schedule"],
+          "description": "How the device accepts a control intent for this capability: a numeric value effective now (setpoint), an enum/on-off effective now (switch), or a time-windowed plan applied atomically (schedule). Required on an offer that carries a `control` binding. The schedule payload is an ordered list of slots {start,end,mode,charge_power_limit?,target_soc?,reserve_soc?} + a default mode — a control-time contract (see the control-model design doc), not part of this document."
+        },
+        "controlGroup": {
+          "type": "string",
+          "description": "Name of a coupled-write group. Capabilities on the same node sharing a controlGroup resolve and execute as ONE atomic operation (e.g. Solax (mode,target,power)); the resolver gathers all members' values, reading current state for any the consumer didn't supply."
+        },
+        "tier": {
+          "enum": [1, 2],
+          "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
+        }
       }
     },
     "capabilityName": {
@@ -125,7 +136,12 @@
         "op": { "type": "string", "examples": ["read_input", "read_holding", "write_single", "write_multi", "get", "post"] },
         "count": { "type": "integer", "default": 1, "description": "# elements/registers — vector reads (per-unit SOC) or slot start+end." },
         "encoding": { "$ref": "#/$defs/encoding" },
-        "transform": { "$ref": "#/$defs/transform" }
+        "transform": { "$ref": "#/$defs/transform" },
+        "readModifyWrite": {
+          "type": "boolean",
+          "default": false,
+          "description": "true if executing this control op requires reading current device state, merging the new value, and writing the whole object back (e.g. Fox schedule rebuild) — the executor read-modify-writes rather than writing a scalar."
+        }
       }
     },
     "transform": {

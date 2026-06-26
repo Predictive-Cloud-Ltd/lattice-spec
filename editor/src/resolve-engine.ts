@@ -26,8 +26,11 @@ export type ResolveResult = {
   accessPaths: AccessChoice[];
   chosenAccessPath?: string;
   fellBack?: boolean;
-  binding?: { protocol?: string; op?: string; address?: unknown; transform?: string };
+  binding?: { protocol?: string; op?: string; address?: unknown; transform?: string; readModifyWrite?: boolean };
   unit?: string;
+  shape?: string;
+  tier?: number;
+  controlGroup?: string;
   intent?: number;
   clamped?: number;
   clampMin?: number;
@@ -202,8 +205,11 @@ export function resolve(
 
   const chosenOffer = ranked[chosenIdx].offer;
   const b = side === "read" ? chosenOffer.read : chosenOffer.control;
-  if (b) result.binding = { protocol: b.protocol, op: b.op, address: b.address, transform: formatTransform(b.transform) };
+  if (b) result.binding = { protocol: b.protocol, op: b.op, address: b.address, transform: formatTransform(b.transform), readModifyWrite: b.readModifyWrite || undefined };
   result.unit = chosenOffer.unit;
+  result.shape = chosenOffer.shape;
+  result.tier = chosenOffer.tier;
+  result.controlGroup = chosenOffer.controlGroup;
 
   if (side === "control" && intent != null && !Number.isNaN(intent)) {
     const cons = chosenOffer.constraints ?? {};

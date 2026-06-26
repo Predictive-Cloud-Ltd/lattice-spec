@@ -163,6 +163,20 @@ export function checkSemanticInvariants(doc, options = {}) {
           }
         }
       }
+
+      // Control offers must declare how the intent is shaped and at what tier.
+      if (capability.control) {
+        if (!capability.shape) {
+          add(errors, label, `node "${nodeId}" capability "${capName}" has a control binding but no shape`);
+        }
+        if (capability.tier == null) {
+          add(errors, label, `node "${nodeId}" capability "${capName}" has a control binding but no tier`);
+        }
+      }
+      // A control group is a coupled WRITE; a member without a control binding is meaningless.
+      if (capability.controlGroup && !capability.control) {
+        add(errors, label, `node "${nodeId}" capability "${capName}" has controlGroup "${capability.controlGroup}" but no control binding`);
+      }
     }
   }
 

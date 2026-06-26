@@ -107,6 +107,17 @@ function ResultView({ res }: { res: ResolveResult }) {
           </span>
         </div>
       )}
+      {res.side === "control" && (res.shape || res.tier != null || res.controlGroup) && (
+        <div className="rline">
+          <span className="rk">control</span>
+          <span>
+            {res.shape ? <strong>{res.shape}</strong> : null}
+            {res.tier != null ? <span className="muted"> · tier {res.tier}</span> : null}
+            {res.controlGroup ? <span className="muted"> · group <code>{res.controlGroup}</code></span> : null}
+            {res.binding?.readModifyWrite ? <span className="muted"> · read-modify-write</span> : null}
+          </span>
+        </div>
+      )}
       {res.strategy === "expanded" && res.planNodes && res.planNodes.length > 1 && (
         <div className="rnote">↳ illustrative: the access path + binding below are shown for <code>{res.node}</code> only — each of the {res.planNodes.length} plan nodes resolves its own path/binding.</div>
       )}
