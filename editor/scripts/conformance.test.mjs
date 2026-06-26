@@ -274,3 +274,38 @@ test("binding: readModifyWrite is a boolean", () => {
   assert.equal(validateBinding({ protocol: "cloud-api", address: "/x", readModifyWrite: true }), true);
   assert.equal(validateBinding({ protocol: "cloud-api", address: "/x", readModifyWrite: "yes" }), false);
 });
+
+test("a control offer must declare shape and tier", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.mode", ref: 1, accessPath: "ap", control: { protocol: "modbus", address: 1 } }] }] }),
+  );
+  assert.ok(has(errors, 'has a control binding but no shape'));
+  assert.ok(has(errors, 'has a control binding but no tier'));
+});
+
+test("a fully-declared control offer is clean", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.mode", ref: 1, accessPath: "ap", shape: "switch", tier: 1, control: { protocol: "modbus", address: 1 } }] }] }),
+  );
+  assert.equal(has(errors, "control binding but no"), false);
+});
+
+test("controlGroup requires a control binding", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.soc", ref: 1, accessPath: "ap", controlGroup: "g", read: { protocol: "modbus", address: 1 } }] }] }),
+  );
+  assert.ok(has(errors, 'controlGroup "g" but no control binding'));
+});
+
+test("ref-resolution and x-* reporting recurse through a control binding's pipeline.steps", () => {
+  const doc = site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+    capabilities: [{ capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", shape: "setpoint", tier: 1,
+      control: { protocol: "modbus", address: 1, transform: { kind: "pipeline", steps: [ { kind: "ratio", num: { ref: "missing_param" }, den: 1 }, { kind: "x-acme:weird" } ] } } }] }] });
+  const errors = checkSemanticInvariants(doc);
+  assert.ok(has(errors, 'transform ref "missing_param" has no matching node parameter'));
+  const notes = collectExtensionTransformKinds(doc);
+  assert.ok(notes.some((n) => n.includes("x-acme:weird")));
+});

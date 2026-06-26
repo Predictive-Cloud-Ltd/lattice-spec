@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 2,
+  "docVersion": 3,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -31,6 +31,7 @@
         },
         {
           "capability": "battery.charge_power_limit", "ref": 2, "accessPath": "gw-local", "unit": "W",
+          "shape": "setpoint", "tier": 1,
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "distribution": "replicate",
           "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
@@ -58,20 +59,28 @@
         },
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "gw-local", "unit": "W",
+          "shape": "setpoint", "tier": 1, "controlGroup": "soc_target",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": { "ref": "rated_power" }, "den": 100 } },
           "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
         },
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
+          "shape": "setpoint", "tier": 2,
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/commands/set-charge-rate", "transform": { "kind": "identity" } }
         },
         {
           "capability": "battery.target_soc", "ref": 13, "accessPath": "gw-local", "unit": "%",
+          "shape": "setpoint", "tier": 1, "controlGroup": "soc_target",
           "constraints": { "min": 0, "max": 100, "scope": "capability" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } },
-          "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } }
+          "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" }, "readModifyWrite": true }
+        },
+        {
+          "capability": "battery.mode", "ref": 16, "accessPath": "gw-local", "unit": "mode",
+          "shape": "schedule", "tier": 1, "controlGroup": "soc_target",
+          "control": { "protocol": "modbus", "op": "write_multi", "address": 91, "count": 6, "transform": { "kind": "identity" } }
         }
       ]
     },
@@ -90,6 +99,7 @@
         },
         {
           "capability": "battery.charge_power_limit", "ref": 15, "accessPath": "gw-local", "unit": "W",
+          "shape": "setpoint", "tier": 1,
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 81, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } },
           "control": { "protocol": "modbus", "op": "write_single", "address": 81, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
@@ -110,6 +120,7 @@
         },
         {
           "capability": "ev_charger.charge_current_limit", "ref": 21, "accessPath": "ocpp", "unit": "A",
+          "shape": "setpoint", "tier": 1,
           "constraints": { "min": 0, "max": 32, "scope": "node" },
           "control": { "protocol": "ocpp", "op": "post", "address": "SetChargingProfile", "transform": { "kind": "identity" } }
         }
@@ -149,6 +160,7 @@
         },
         {
           "capability": "target_temperature", "ref": 42, "accessPath": "gw-local", "unit": "degC",
+          "shape": "setpoint", "tier": 1,
           "constraints": { "min": 15, "max": 60, "scope": "capability" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } },
           "control": { "protocol": "modbus", "op": "write_single", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
