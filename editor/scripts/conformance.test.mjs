@@ -193,3 +193,35 @@ test("transform: pipeline accepts nested steps", () => {
     true,
   );
 });
+
+test("transform ref must resolve to a declared node parameter", () => {
+  const errors = checkSemanticInvariants(
+    site({
+      nodes: [{
+        id: "N1", kind: "inverter",
+        accessPaths: [{ id: "ap", provider: "p" }],
+        capabilities: [{
+          capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", unit: "W",
+          read: { protocol: "modbus", address: 1, transform: { kind: "ratio", num: { ref: "rated_power" }, den: 100 } },
+        }],
+      }],
+    }),
+  );
+  assert.ok(has(errors, 'transform ref "rated_power" has no matching node parameter'));
+});
+
+test("a declared node parameter satisfies the ref", () => {
+  const errors = checkSemanticInvariants(
+    site({
+      nodes: [{
+        id: "N1", kind: "inverter", parameters: { rated_power: 5000 },
+        accessPaths: [{ id: "ap", provider: "p" }],
+        capabilities: [{
+          capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", unit: "W",
+          read: { protocol: "modbus", address: 1, transform: { kind: "ratio", num: { ref: "rated_power" }, den: 100 } },
+        }],
+      }],
+    }),
+  );
+  assert.equal(has(errors, "has no matching node parameter"), false);
+});

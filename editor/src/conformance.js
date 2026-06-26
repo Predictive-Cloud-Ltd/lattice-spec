@@ -144,6 +144,25 @@ export function checkSemanticInvariants(doc, options = {}) {
       if (capability.constraints?.max === "rated" && typeof node.attributes?.ratedW !== "number") {
         add(errors, label, `node "${nodeId}" capability "${capName}" uses max "rated" without attributes.ratedW`);
       }
+
+      // Transform parameter references must resolve to a declared node parameter.
+      const nodeParams = node.parameters && typeof node.parameters === "object" ? node.parameters : {};
+      const collectRefs = (transform, out) => {
+        if (!transform || typeof transform !== "object") return out;
+        for (const key of ["num", "den", "scale", "offset", "min", "max"]) {
+          const value = transform[key];
+          if (value && typeof value === "object" && typeof value.ref === "string") out.push(value.ref);
+        }
+        for (const step of Array.isArray(transform.steps) ? transform.steps : []) collectRefs(step, out);
+        return out;
+      };
+      for (const binding of [capability.read, capability.control]) {
+        for (const refName of collectRefs(binding?.transform, [])) {
+          if (!(refName in nodeParams)) {
+            add(errors, label, `node "${nodeId}" capability "${capName}" transform ref "${refName}" has no matching node parameter`);
+          }
+        }
+      }
     }
   }
 

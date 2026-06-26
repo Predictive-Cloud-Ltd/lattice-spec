@@ -36,6 +36,7 @@
         "kind": { "$ref": "#/$defs/nodeKind" },
         "deviceType": { "type": "string", "description": "Optional key referencing a deviceTypes[] descriptor." },
         "attributes": { "$ref": "#/$defs/attributes" },
+        "parameters": { "$ref": "#/$defs/nodeParameters" },
         "accessPaths": { "type": "array", "items": { "$ref": "#/$defs/accessPath" }, "description": "Ways this producer can reach the node. The consumer merges + ranks all producers' access paths to the same id." },
         "aggregate": { "$ref": "#/$defs/aggregate" },
         "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } }
@@ -163,6 +164,16 @@
           }
         }
       ]
+    },
+    "nodeParameters": {
+      "type": "object",
+      "description": "Already-canonical node values a transform `ref` resolves against at execution time. A referenced value must itself be resolvable from a non-referencing binding (no cycles, which holds by construction while parameters are literals); if unavailable at runtime the binding yields no value (fail-closed).",
+      "additionalProperties": { "type": "number" },
+      "properties": {
+        "capacity": { "type": "number", "description": "Wh" },
+        "rated_power": { "type": "number", "description": "W" },
+        "nominal_voltage": { "type": "number", "description": "V" }
+      }
     },
     "encoding": { "type": "string", "examples": ["u16", "i16", "u32_hl", "i32_hl", "u16_vec"] },
     "reducer": { "type": "string", "enum": ["direct", "sum", "mean", "min", "max", "spread", "representative"], "description": "How multiple read sources (or vector elements) combine. 'representative' = redundant value, read one. 'spread' = max-min (e.g. cell imbalance)." },

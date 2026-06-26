@@ -42,6 +42,7 @@
       "kind": "inverter",
       "deviceType": "example-hybrid-inverter",
       "attributes": { "phase": 1, "ratedW": 5000, "capacityWh": 10000 },
+      "parameters": { "rated_power": 5000, "capacity": 10000 },
       "accessPaths": [
         { "id": "gw-local",     "provider": "local-gateway", "locality": "local", "transport": "modbus",    "preference": 10 },
         { "id": "vendor-cloud", "provider": "example-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 1 }
@@ -58,7 +59,7 @@
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "gw-local", "unit": "W",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
-          "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } },
+          "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": { "ref": "rated_power" }, "den": 100 } },
           "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
         },
         {
