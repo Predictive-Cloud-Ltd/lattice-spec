@@ -62,7 +62,7 @@
           "shape": "setpoint", "tier": 1, "controlGroup": "soc_target",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": { "ref": "rated_power" }, "den": 100 } },
-          "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
+          "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": 100, "den": { "ref": "rated_power" }, "round": "half_up" } }
         },
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",

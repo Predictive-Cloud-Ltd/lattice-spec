@@ -61,8 +61,10 @@ export function formatTransform(t: any): string | undefined {
     return `pipeline[${steps.join(", ")}]`;
   }
   const keys = ["num", "den", "scale", "offset", "min", "max"].filter((k) => t[k] != null);
-  if (!keys.length) return t.kind;
-  return `${t.kind}(${keys.map((k) => `${k}=${fmtParam(t[k])}`).join(", ")})`;
+  const round = t.round && t.round !== "trunc" ? `round=${t.round}` : null;
+  const parts = [...keys.map((k) => `${k}=${fmtParam(t[k])}`), ...(round ? [round] : [])];
+  if (!parts.length) return t.kind;
+  return `${t.kind}(${parts.join(", ")})`;
 }
 
 function childrenOf(doc: Doc, nodeId: string, rel: string): string[] {
