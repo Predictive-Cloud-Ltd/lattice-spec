@@ -216,10 +216,15 @@ export function resolve(
   result.tier = chosenOffer.tier;
   result.controlGroup = chosenOffer.controlGroup;
   if (side === "control" && chosenOffer.controlGroup) {
-    // The group resolves + executes as one op: gather the sibling members on this node + access path.
+    // The group resolves + executes as one op: gather the sibling members on this node + access path,
+    // showing where each value goes (groupSlot field / bit-range).
     result.groupMembers = (node.capabilities ?? [])
       .filter((o: any) => o?.controlGroup === chosenOffer.controlGroup && o?.accessPath === chosenOffer.accessPath)
-      .map((o: any) => String(o.capability));
+      .map((o: any) => {
+        const s = o?.groupSlot;
+        const where = s?.field ? ` → ${s.field}` : s?.bits ? ` → bits[${s.bits.lsb}..${s.bits.lsb + s.bits.width - 1}]` : "";
+        return `${String(o.capability)}${where}`;
+      });
   }
 
   if (side === "control" && intent != null && !Number.isNaN(intent)) {

@@ -112,11 +112,31 @@
         },
         "controlGroup": {
           "type": "string",
-          "description": "Name of a coupled-write group. Capabilities on the same node sharing a controlGroup resolve and execute as ONE atomic operation (e.g. Solax (mode,target,power)); the resolver gathers all members' values, reading current state for any the consumer didn't supply."
+          "description": "Name of a coupled-write group. Capabilities on the same node sharing a controlGroup resolve and execute as ONE atomic operation (e.g. Solax (mode,target,power)); the resolver gathers all members' values, reading current state for any the consumer didn't supply. With ≥2 members, each declares a `groupSlot` saying where its value goes in the one operation."
         },
+        "groupSlot": { "$ref": "#/$defs/groupSlot" },
         "tier": {
           "enum": [1, 2],
           "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
+        }
+      }
+    },
+    "groupSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How a controlGroup member's value is placed into the group's single operation. Exactly one of `field` (a named field in the coupled op's payload — e.g. Solax soc_target_control_mode's 'targetSoc') or `bits` (a bit-range of a shared register, written read-modify-write preserving other bits — e.g. Solis CID 636's storage-mode bitfield, where several capabilities each own bits). The member's own `control.transform` still applies (e.g. negate a discharge value into a shared signed field).",
+      "oneOf": [{ "required": ["field"] }, { "required": ["bits"] }],
+      "properties": {
+        "field": { "type": "string", "description": "named field in the coupled operation's payload that carries this member's value." },
+        "bits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lsb", "width"],
+          "description": "bit range [lsb .. lsb+width-1] this member owns in the shared register; the executor writes it read-modify-write, leaving other bits untouched.",
+          "properties": {
+            "lsb": { "type": "integer", "minimum": 0, "description": "least-significant bit index (0-based)." },
+            "width": { "type": "integer", "minimum": 1, "description": "number of bits this member occupies." }
+          }
         }
       }
     },
