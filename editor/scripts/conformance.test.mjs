@@ -368,13 +368,14 @@ test("control-group members must share one binding (one atomic operation)", () =
   const oneOp = checkSemanticInvariants(
     site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
       capabilities: [
-        { capability: "battery.target_soc", ref: 1, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+        { capability: "battery.target_soc", ref: 1, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g", groupSlot: { field: "targetSoc" },
           control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
-        { capability: "battery.charge_power_limit", ref: 2, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+        { capability: "battery.charge_power_limit", ref: 2, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g", groupSlot: { field: "power" },
           control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
       ] }] }),
   );
   assert.equal(has(oneOp, "must share one control binding"), false);
+  assert.equal(has(oneOp, "needs a groupSlot"), false);
   const twoOps = checkSemanticInvariants(
     site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
       capabilities: [
@@ -385,6 +386,60 @@ test("control-group members must share one binding (one atomic operation)", () =
       ] }] }),
   );
   assert.ok(has(twoOps, 'controlGroup "g" members must share one control binding'));
+});
+
+test("groupSlot: exactly one of field/bits (schema)", () => {
+  assert.equal(validateOffer({ capability: "battery.target_soc", control: { protocol: "x", address: "/a" }, shape: "setpoint", tier: 2, controlGroup: "g", groupSlot: { field: "targetSoc" } }), true);
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "x", address: 636 }, shape: "switch", tier: 1, controlGroup: "g", groupSlot: { bits: { lsb: 0, width: 2 } } }), true);
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "x", address: 636 }, shape: "switch", tier: 1, controlGroup: "g", groupSlot: { field: "f", bits: { lsb: 0, width: 1 } } }), false); // both
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "x", address: 636 }, shape: "switch", tier: 1, controlGroup: "g", groupSlot: {} }), false); // neither
+});
+
+test("a ≥2-member control group needs a groupSlot on every member", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
+      capabilities: [
+        { capability: "battery.target_soc", ref: 1, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g", groupSlot: { field: "targetSoc" },
+          control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
+        { capability: "battery.charge_power_limit", ref: 2, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+          control: { protocol: "cloud-api", op: "post", address: "/coupled" } }, // missing groupSlot
+      ] }] }),
+  );
+  assert.ok(has(errors, 'member "battery.charge_power_limit" needs a groupSlot'));
+});
+
+test("control-group members must not collide on field or overlapping bits", () => {
+  const dupField = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
+      capabilities: [
+        { capability: "battery.target_soc", ref: 1, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g", groupSlot: { field: "f" },
+          control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
+        { capability: "battery.charge_power_limit", ref: 2, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g", groupSlot: { field: "f" },
+          control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
+      ] }] }),
+  );
+  assert.ok(has(dupField, 'two members on field "f"'));
+  // Solis CID 636-style bit-field: members own distinct bit ranges (ok), overlapping (error).
+  const okBits = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
+      capabilities: [
+        { capability: "battery.mode", ref: 1, accessPath: "c", shape: "switch", tier: 1, controlGroup: "g636", groupSlot: { bits: { lsb: 0, width: 2 } },
+          control: { protocol: "modbus", op: "write_single", address: 636 } },
+        { capability: "x-solis:allow_grid_charge", ref: 2, accessPath: "c", shape: "switch", tier: 1, controlGroup: "g636", groupSlot: { bits: { lsb: 5, width: 1 } },
+          control: { protocol: "modbus", op: "write_single", address: 636 } },
+      ] }] }),
+  );
+  assert.equal(has(okBits, "overlaps"), false);
+  const overlapBits = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
+      capabilities: [
+        { capability: "battery.mode", ref: 1, accessPath: "c", shape: "switch", tier: 1, controlGroup: "g636", groupSlot: { bits: { lsb: 0, width: 3 } },
+          control: { protocol: "modbus", op: "write_single", address: 636 } },
+        { capability: "x-solis:allow_grid_charge", ref: 2, accessPath: "c", shape: "switch", tier: 1, controlGroup: "g636", groupSlot: { bits: { lsb: 2, width: 1 } },
+          control: { protocol: "modbus", op: "write_single", address: 636 } },
+      ] }] }),
+  );
+  assert.ok(has(overlapBits, "overlaps"));
 });
 
 test("ref-resolution and x-* reporting recurse through a control binding's pipeline.steps", () => {

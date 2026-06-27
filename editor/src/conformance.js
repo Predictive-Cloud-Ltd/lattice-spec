@@ -101,6 +101,7 @@ export function checkSemanticInvariants(doc, options = {}) {
     const offerKeys = new Set();
     const refsByNodeCapability = new Map();
     const groupBindings = new Map(); // controlGroup -> Set(binding signature): members must share ONE op
+    const groupMembers = new Map();  // controlGroup -> [{ capName, slot }]: how each value enters the one op
     for (const capability of node.capabilities ?? []) {
       if (!capability?.capability) continue;
       const capName = String(capability.capability);
@@ -193,11 +194,43 @@ export function checkSemanticInvariants(doc, options = {}) {
         const sigs = groupBindings.get(capability.controlGroup) ?? new Set();
         sigs.add(sig);
         groupBindings.set(capability.controlGroup, sigs);
+        const members = groupMembers.get(capability.controlGroup) ?? [];
+        members.push({ capName, slot: capability.groupSlot });
+        groupMembers.set(capability.controlGroup, members);
       }
     }
     for (const [group, sigs] of groupBindings) {
       if (sigs.size > 1) {
         add(errors, label, `node "${nodeId}" controlGroup "${group}" members must share one control binding (one atomic operation) — found ${sigs.size} distinct bindings`);
+      }
+    }
+    // For a coupled op the executor must know where each member's value goes: with ≥2 members,
+    // every member declares a `groupSlot`, and no two may collide (same field / overlapping bits).
+    for (const [group, members] of groupMembers) {
+      if (members.length < 2) continue;
+      const fields = new Set();
+      const bitRanges = [];
+      for (const { capName, slot } of members) {
+        if (!slot || (slot.field == null && slot.bits == null)) {
+          add(errors, label, `node "${nodeId}" controlGroup "${group}" member "${capName}" needs a groupSlot (field or bits) to place its value in the one operation`);
+          continue;
+        }
+        if (slot.field != null) {
+          if (fields.has(slot.field)) {
+            add(errors, label, `node "${nodeId}" controlGroup "${group}" has two members on field "${slot.field}"`);
+          }
+          fields.add(slot.field);
+        }
+        if (slot.bits && Number.isInteger(slot.bits.lsb) && Number.isInteger(slot.bits.width)) {
+          const lo = slot.bits.lsb;
+          const hi = slot.bits.lsb + slot.bits.width - 1;
+          for (const r of bitRanges) {
+            if (lo <= r.hi && r.lo <= hi) {
+              add(errors, label, `node "${nodeId}" controlGroup "${group}" member "${capName}" bit range [${lo}..${hi}] overlaps "${r.capName}" [${r.lo}..${r.hi}]`);
+            }
+          }
+          bitRanges.push({ capName, lo, hi });
+        }
       }
     }
   }

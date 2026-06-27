@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 5,
+  "docVersion": 6,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -78,13 +78,13 @@
         },
         {
           "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
-          "shape": "setpoint", "tier": 2, "controlGroup": "cloud_plan",
+          "shape": "setpoint", "tier": 2, "controlGroup": "cloud_plan", "groupSlot": { "field": "chargeDischargPower" },
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/soc-target-control", "transform": { "kind": "identity" }, "readModifyWrite": true }
         },
         {
           "capability": "battery.target_soc", "ref": 13, "accessPath": "vendor-cloud", "unit": "%",
-          "shape": "setpoint", "tier": 2, "controlGroup": "cloud_plan",
+          "shape": "setpoint", "tier": 2, "controlGroup": "cloud_plan", "groupSlot": { "field": "targetSoc" },
           "constraints": { "min": 0, "max": 100, "scope": "capability" },
           "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/soc-target-control", "transform": { "kind": "identity" }, "readModifyWrite": true }
         }
