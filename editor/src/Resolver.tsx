@@ -118,6 +118,9 @@ function ResultView({ res }: { res: ResolveResult }) {
           </span>
         </div>
       )}
+      {res.side === "control" && res.groupMembers && res.groupMembers.length > 1 && (
+        <div className="rnote">↳ group <code>{res.controlGroup}</code> executes as one op — the resolver gathers {res.groupMembers.length} members: <strong>{res.groupMembers.join(", ")}</strong></div>
+      )}
       {res.strategy === "expanded" && res.planNodes && res.planNodes.length > 1 && (
         <div className="rnote">↳ illustrative: the access path + binding below are shown for <code>{res.node}</code> only — each of the {res.planNodes.length} plan nodes resolves its own path/binding.</div>
       )}

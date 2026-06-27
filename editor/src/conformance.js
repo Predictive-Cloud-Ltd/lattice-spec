@@ -100,11 +100,19 @@ export function checkSemanticInvariants(doc, options = {}) {
 
     const offerKeys = new Set();
     const refsByNodeCapability = new Map();
+    const groupBindings = new Map(); // controlGroup -> Set(binding signature): members must share ONE op
     for (const capability of node.capabilities ?? []) {
       if (!capability?.capability) continue;
       const capName = String(capability.capability);
       const offerKey = `${capName}|${capability.accessPath ?? ""}`;
       const nodeCapKey = `${nodeId}|${capName}`;
+
+      // Capability identity is the merge/resolve key: it MUST be `class.function` (qualified by device
+      // class) or a namespaced `x-<vendor>:` extension. A bare name reintroduces the cross-class
+      // collision the model exists to prevent (e.g. a battery's W vs an EV's A).
+      if (!/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(capName) && !/^x-[^:]+:.+$/.test(capName)) {
+        add(errors, label, `node "${nodeId}" capability "${capName}" is not class.function or a namespaced x-* extension`);
+      }
 
       if (offerKeys.has(offerKey)) {
         add(errors, label, `node "${nodeId}" repeats capability/accessPath "${offerKey}"`);
@@ -176,6 +184,20 @@ export function checkSemanticInvariants(doc, options = {}) {
       // A control group is a coupled WRITE; a member without a control binding is meaningless.
       if (capability.controlGroup && !capability.control) {
         add(errors, label, `node "${nodeId}" capability "${capName}" has controlGroup "${capability.controlGroup}" but no control binding`);
+      }
+      // Members of a control group execute as ONE operation, so they must share one control binding
+      // (same protocol/op/address) — the resolver gathers all member values and invokes it once.
+      if (capability.controlGroup && capability.control) {
+        const b = capability.control;
+        const sig = `${b.protocol ?? ""}|${b.op ?? ""}|${JSON.stringify(b.address ?? null)}`;
+        const sigs = groupBindings.get(capability.controlGroup) ?? new Set();
+        sigs.add(sig);
+        groupBindings.set(capability.controlGroup, sigs);
+      }
+    }
+    for (const [group, sigs] of groupBindings) {
+      if (sigs.size > 1) {
+        add(errors, label, `node "${nodeId}" controlGroup "${group}" members must share one control binding (one atomic operation) — found ${sigs.size} distinct bindings`);
       }
     }
   }

@@ -172,9 +172,11 @@
         "onRefUnavailable": {
           "enum": ["zero", "max"],
           "default": "zero",
-          "description": "Control-write behaviour when a `ref` parameter can't be resolved at runtime (e.g. battery capacity not yet read). `zero` (default) = fail-closed, yield no value / 0. `max` = fail-open: emit the transform's clamp `max` (the unrestricted maximum) rather than an under-scaled guess — e.g. a battery rate cap that writes 'unrestricted' until capacity is known. A generic, vendor-neutral degradation policy."
+          "description": "Control-write behaviour when a `ref` parameter can't be resolved at runtime (e.g. battery capacity not yet read). `zero` (default) = fail-closed, yield no value / 0. `max` = fail-open: emit this transform's `max` value (the unrestricted maximum) rather than an under-scaled guess — e.g. a battery rate cap that writes 'unrestricted' until capacity is known. Requires `max` to be set (a conforming executor must know what to emit). A generic, vendor-neutral degradation policy."
         }
-      }
+      },
+      "if": { "properties": { "onRefUnavailable": { "const": "max" } }, "required": ["onRefUnavailable"] },
+      "then": { "required": ["max"] }
     },
     "valueOrRef": {
       "description": "A transform parameter: a literal number, or a reference to a declared node parameter with an optional constant factor.",
@@ -193,13 +195,25 @@
     },
     "nodeParameters": {
       "type": "object",
-      "description": "Already-canonical node values a transform `ref` resolves against at execution time. A referenced value must itself be resolvable from a non-referencing binding (no cycles, which holds by construction while parameters are literals); if unavailable at runtime the binding yields no value (fail-closed).",
-      "additionalProperties": { "type": "number" },
+      "description": "Named node values a transform `ref` resolves against. Each value is EITHER a static literal number (known at config/discovery time, e.g. rated power) OR `{ \"source\": \"<capability>\" }` — resolved at execution time from that capability's latest reading (e.g. capacity from `battery.capacity`). A `source` capability MUST itself be resolvable without a `ref` back to a parameter (no cycles). If a sourced value is unavailable at runtime, a transform that refs it applies its `onRefUnavailable` policy (fail-closed by default).",
+      "additionalProperties": { "$ref": "#/$defs/paramValue" },
       "properties": {
-        "capacity": { "type": "number", "description": "Wh" },
-        "rated_power": { "type": "number", "description": "W" },
-        "nominal_voltage": { "type": "number", "description": "V" }
+        "capacity": { "$ref": "#/$defs/paramValue", "description": "Wh — typically { source: \"battery.capacity\" }" },
+        "rated_power": { "$ref": "#/$defs/paramValue", "description": "W — typically a static literal" },
+        "nominal_voltage": { "$ref": "#/$defs/paramValue", "description": "V" }
       }
+    },
+    "paramValue": {
+      "description": "A node parameter: a static literal number, or a runtime value sourced from a capability.",
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "required": ["source"],
+          "additionalProperties": false,
+          "properties": { "source": { "$ref": "#/$defs/capabilityName", "description": "capability whose latest value supplies this parameter at runtime" } }
+        }
+      ]
     },
     "encoding": { "type": "string", "examples": ["u16", "i16", "u32_hl", "i32_hl", "u16_vec"] },
     "reducer": { "type": "string", "enum": ["direct", "sum", "mean", "min", "max", "spread", "representative"], "description": "How multiple read sources (or vector elements) combine. 'representative' = redundant value, read one. 'spread' = max-min (e.g. cell imbalance)." },
