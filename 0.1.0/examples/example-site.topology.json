@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 8,
+  "docVersion": 9,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -203,6 +203,16 @@
         {
           "capability": "battery.soc", "ref": 50, "accessPath": "fox-cloud", "unit": "%",
           "read": { "protocol": "cloud-api", "op": "get", "address": "/op/v0/device/real/query#SoC", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.power_limit_max", "ref": 52, "accessPath": "fox-cloud", "unit": "W",
+          "read": { "protocol": "cloud-api", "op": "get", "address": "/op/v0/device/scheduler/get/flag#properties.fdpwr.range.max", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 53, "accessPath": "fox-cloud", "unit": "W",
+          "shape": "setpoint", "tier": 2,
+          "constraints": { "min": 0, "max": { "source": "battery.power_limit_max" }, "scope": "node" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/op/v0/device/setting/set#fdpwr", "transform": { "kind": "identity" }, "readModifyWrite": true }
         },
         {
           "capability": "battery.mode", "ref": 51, "accessPath": "fox-cloud", "unit": "mode",
