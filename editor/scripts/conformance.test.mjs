@@ -443,6 +443,65 @@ test("control-group members must not collide on field or overlapping bits", () =
   assert.ok(has(overlapBits, "overlaps"));
 });
 
+const validateDerived = ajvT.compile({ $ref: schema.$id + "#/$defs/derived" });
+
+test("derived: sum and ratio shapes accepted; malformed rejected", () => {
+  assert.equal(validateDerived({ op: "sum", inputs: [{ ref: "pv.power", weight: 1 }, { ref: "battery.power", weight: -1 }] }), true);
+  assert.equal(validateDerived({ op: "ratio", num: { ref: "battery.remaining", factor: 100 }, den: { ref: "battery.soc" } }), true);
+  assert.equal(validateDerived({ op: "sum" }), false); // no inputs
+  assert.equal(validateDerived({ op: "ratio", num: { ref: "a" } }), false); // no den
+  assert.equal(validateDerived({ op: "product", inputs: [{ ref: "a" }] }), false); // unknown op
+});
+
+test("derived: read computed from siblings, not transport-bound", () => {
+  const ok = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "gateway", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [
+        { capability: "pv.power", ref: 1, accessPath: "ap", read: { protocol: "modbus", address: 1 } },
+        { capability: "meter.grid_power", ref: 2, accessPath: "ap", read: { protocol: "modbus", address: 2 } },
+        { capability: "battery.power", ref: 3, accessPath: "ap", read: { protocol: "modbus", address: 3 } },
+        // derived: no accessPath required (computed); site mode would normally demand one
+        { capability: "meter.load_power", ref: 4, derived: { op: "sum", inputs: [
+          { ref: "pv.power", weight: 1 }, { ref: "meter.grid_power", weight: -1 }, { ref: "battery.power", weight: -1 } ] } },
+      ] }] }),
+  );
+  assert.deepEqual(ok, []);
+});
+
+test("derived input must resolve to a sibling capability/parameter", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "gateway", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [
+        { capability: "pv.power", ref: 1, accessPath: "ap", read: { protocol: "modbus", address: 1 } },
+        { capability: "meter.load_power", ref: 2, derived: { op: "sum", inputs: [{ ref: "pv.power" }, { ref: "battery.power" }] } }, // battery.power absent
+      ] }] }),
+  );
+  assert.ok(has(errors, 'input "battery.power" is not a capability or parameter'));
+});
+
+test("derived value is not writable (no control)", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "gateway", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [
+        { capability: "pv.power", ref: 1, accessPath: "ap", read: { protocol: "modbus", address: 1 } },
+        { capability: "meter.load_power", ref: 2, shape: "setpoint", tier: 1,
+          derived: { op: "sum", inputs: [{ ref: "pv.power" }] }, control: { protocol: "modbus", address: 9 } },
+      ] }] }),
+  );
+  assert.ok(has(errors, "is derived (computed) and cannot also have a control binding"));
+});
+
+test("derived reference cycle is detected", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "gateway", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [
+        { capability: "meter.a_power", ref: 1, derived: { op: "sum", inputs: [{ ref: "meter.b_power" }] } },
+        { capability: "meter.b_power", ref: 2, derived: { op: "sum", inputs: [{ ref: "meter.a_power" }] } },
+      ] }] }),
+  );
+  assert.ok(has(errors, "has a reference cycle"));
+});
+
 const validateSlot = ajvT.compile({ $ref: schema.$id + "#/$defs/scheduleSlot" });
 
 test("scheduleSlot: requires start/end/mode; rejects unknown fields", () => {

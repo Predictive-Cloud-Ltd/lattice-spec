@@ -102,6 +102,9 @@ export function checkSemanticInvariants(doc, options = {}) {
     const refsByNodeCapability = new Map();
     const groupBindings = new Map(); // controlGroup -> Set(binding signature): members must share ONE op
     const groupMembers = new Map();  // controlGroup -> [{ capName, slot }]: how each value enters the one op
+    const nodeCapNames = new Set((node.capabilities ?? []).map((c) => c?.capability).filter(Boolean).map(String));
+    const nodeParamNames = node.parameters && typeof node.parameters === "object" ? Object.keys(node.parameters) : [];
+    const derivedDeps = new Map();   // derived capName -> [input capability refs], for cycle detection
     for (const capability of node.capabilities ?? []) {
       if (!capability?.capability) continue;
       const capName = String(capability.capability);
@@ -121,7 +124,8 @@ export function checkSemanticInvariants(doc, options = {}) {
       offerKeys.add(offerKey);
 
       if (!capability.accessPath) {
-        if (requireDataPlane) {
+        // A derived read is computed from sibling capabilities — it has no transport, so no accessPath.
+        if (requireDataPlane && !capability.derived) {
           add(errors, label, `node "${nodeId}" capability "${capName}" is missing accessPath`);
         }
       } else if (!accessPathIds.has(capability.accessPath)) {
@@ -194,6 +198,16 @@ export function checkSemanticInvariants(doc, options = {}) {
       if (capability.controlGroup && !capability.control) {
         add(errors, label, `node "${nodeId}" capability "${capName}" has controlGroup "${capability.controlGroup}" but no control binding`);
       }
+      // Derived reads: a computed value isn't writable; collect inputs for ref-resolution + cycle check.
+      if (capability.derived) {
+        if (capability.control) {
+          add(errors, label, `node "${nodeId}" capability "${capName}" is derived (computed) and cannot also have a control binding`);
+        }
+        const d = capability.derived, refs = [];
+        if (d.op === "sum") for (const i of Array.isArray(d.inputs) ? d.inputs : []) { if (i?.ref) refs.push(String(i.ref)); }
+        if (d.op === "ratio") { if (d.num?.ref) refs.push(String(d.num.ref)); if (d.den?.ref) refs.push(String(d.den.ref)); }
+        derivedDeps.set(capName, refs);
+      }
       // Members of a control group execute as ONE operation, so they must share one control binding
       // (same protocol/op/address) — the resolver gathers all member values and invokes it once.
       if (capability.controlGroup && capability.control) {
@@ -238,6 +252,34 @@ export function checkSemanticInvariants(doc, options = {}) {
             }
           }
           bitRanges.push({ capName, lo, hi });
+        }
+      }
+    }
+    // Derived read inputs must resolve to a sibling capability or a node parameter; no reference cycles.
+    for (const [dCap, refs] of derivedDeps) {
+      for (const r of refs) {
+        if (!nodeCapNames.has(r) && !nodeParamNames.includes(r)) {
+          add(errors, label, `node "${nodeId}" derived capability "${dCap}" input "${r}" is not a capability or parameter on this node`);
+        }
+      }
+    }
+    {
+      const color = new Map(); // cap -> 'gray' (on stack) | 'black' (done)
+      const dfs = (cap) => {
+        color.set(cap, "gray");
+        let cyc = false;
+        for (const r of derivedDeps.get(cap) ?? []) {
+          if (!derivedDeps.has(r)) continue; // non-derived input is a leaf
+          const c = color.get(r);
+          if (c === "gray") cyc = true;
+          else if (c !== "black" && dfs(r)) cyc = true;
+        }
+        color.set(cap, "black");
+        return cyc;
+      };
+      for (const dCap of derivedDeps.keys()) {
+        if (color.get(dCap) !== "black" && dfs(dCap)) {
+          add(errors, label, `node "${nodeId}" derived capability "${dCap}" has a reference cycle`);
         }
       }
     }

@@ -32,6 +32,7 @@ export type ResolveResult = {
   tier?: number;
   controlGroup?: string;
   groupMembers?: string[];
+  derived?: string;
   intent?: number;
   clamped?: number;
   clampMin?: number;
@@ -96,7 +97,7 @@ function nodesOffering(doc: Doc, cap: string, side: "read" | "control") {
   const out: { node: any; offers: any[] }[] = [];
   for (const n of doc?.nodes ?? []) {
     const offers = (n.capabilities ?? []).filter(
-      (c: any) => c?.capability === cap && (side === "read" ? c.read : c.control),
+      (c: any) => c?.capability === cap && (side === "read" ? c.read || c.derived : c.control),
     );
     if (offers.length) out.push({ node: n, offers });
   }
@@ -113,6 +114,17 @@ export function listAccessPaths(doc: Doc): string[] {
   const s = new Set<string>();
   for (const n of doc?.nodes ?? []) for (const a of n.accessPaths ?? []) if (a?.id) s.add(a.id);
   return [...s];
+}
+
+function formatDerived(d: any): string | undefined {
+  if (!d || typeof d !== "object") return undefined;
+  if (d.op === "sum")
+    return `sum(${(d.inputs ?? [])
+      .map((i: any) => `${i.weight != null && i.weight !== 1 ? `${i.weight}×` : ""}${i.ref}`)
+      .join(" + ")})`;
+  if (d.op === "ratio")
+    return `ratio(${d.num?.factor != null && d.num.factor !== 1 ? `${d.num.factor}×` : ""}${d.num?.ref} / ${d.den?.ref})`;
+  return d.op;
 }
 
 export function resolve(
@@ -167,6 +179,14 @@ export function resolve(
 
   const primary = routeNodes[0];
   const node = primary.node;
+
+  // A derived read is computed from sibling capabilities — no access path / binding to rank.
+  if (side === "read") {
+    const dOffer = (node.capabilities ?? []).find((c: any) => c?.capability === cap && c?.derived && !c?.read);
+    if (dOffer) {
+      return { ok: true, side, node: node.id, nodeKind: node.kind, accessPaths: [], unit: dOffer.unit, derived: formatDerived(dOffer.derived) };
+    }
+  }
 
   // rank this node's offers (= access paths) by preference desc
   const apById = new Map<string, any>((node.accessPaths ?? []).map((a: any) => [a.id, a]));
