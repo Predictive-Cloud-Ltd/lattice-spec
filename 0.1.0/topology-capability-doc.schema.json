@@ -168,6 +168,11 @@
           "enum": ["trunc", "half_up", "half_even"],
           "default": "trunc",
           "description": "Rounding mode for a dividing kind (`ratio`/`affine`). `trunc` (default) = integer division toward zero (back-compatible); `half_up` = round half away from zero ((x + den/2)/den for positive); `half_even` = round half to nearest even (banker's). Ignored by non-dividing kinds; `pipeline` steps carry their own."
+        },
+        "onRefUnavailable": {
+          "enum": ["zero", "max"],
+          "default": "zero",
+          "description": "Control-write behaviour when a `ref` parameter can't be resolved at runtime (e.g. battery capacity not yet read). `zero` (default) = fail-closed, yield no value / 0. `max` = fail-open: emit the transform's clamp `max` (the unrestricted maximum) rather than an under-scaled guess — e.g. a battery rate cap that writes 'unrestricted' until capacity is known. A generic, vendor-neutral degradation policy."
         }
       }
     },

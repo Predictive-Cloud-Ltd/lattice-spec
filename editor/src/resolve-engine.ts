@@ -61,8 +61,10 @@ export function formatTransform(t: any): string | undefined {
     return `pipeline[${steps.join(", ")}]`;
   }
   const keys = ["num", "den", "scale", "offset", "min", "max"].filter((k) => t[k] != null);
-  const round = t.round && t.round !== "trunc" ? `round=${t.round}` : null;
-  const parts = [...keys.map((k) => `${k}=${fmtParam(t[k])}`), ...(round ? [round] : [])];
+  const extra: string[] = [];
+  if (t.round && t.round !== "trunc") extra.push(`round=${t.round}`);
+  if (t.onRefUnavailable === "max") extra.push("fail-open");
+  const parts = [...keys.map((k) => `${k}=${fmtParam(t[k])}`), ...extra];
   if (!parts.length) return t.kind;
   return `${t.kind}(${parts.join(", ")})`;
 }

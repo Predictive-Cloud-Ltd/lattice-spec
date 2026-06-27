@@ -47,6 +47,8 @@ Encodings (`u16`, `i16`, `u32_hl`, `u16_vec`, …) stay a separate `binding.enco
 
 **Rounding.** The dividing kinds (`ratio`, `affine`) take an optional `round` mode — `trunc` (default: integer division toward zero, the existing behaviour), `half_up` (round half away from zero), or `half_even` (banker's). This is the piece that lets device registers which **round half-up** be expressed generically rather than as vendor kinds: GivEnergy's rate-cap registers round half-up because the firmware treats only the *exact* maximum as "unrestricted", so a truncated near-max value snaps back to the true rate. `round: half_up` reproduces that exactly. (Added in PR-T2.)
 
+**Degradation / robustness.** Two more generic primitives let device-safety behaviour be expressed as data rather than engine code: an **input clamp** (a `pipeline` `clamp` step before the `ratio`, e.g. a 0–50 register guard so a garbage read can't report a nonsense rate), and **`onRefUnavailable`** (`zero` default = fail-closed; `max` = fail-open: emit the clamp `max` when a `ref` can't be resolved — e.g. write the *unrestricted* rate cap until battery capacity is known). Together with refs + `round`, these make even GivEnergy's `GE_RATE_HALF` (capacity-scaled, round-half-up, clamp-50, unrestricted-when-unknown) a pure generic expression — see §7. (Proven in `predbat-gateway` PR #193.)
+
 > Deliberately *not* a general expression DSL. `pipeline` over a fixed kind set covers observed devices; a free-form formula language is the "derived binding" escape hatch (§5), kept narrow.
 
 ## 4. Parameter references (the real fix)
@@ -75,18 +77,18 @@ When a value is calculated from **more than one** input (`Ah_register × voltage
 
 ## 7. Worked proof — gateway `Transform::GE_*` → generic core (corrected)
 
-**Correction (PR-T2, after reading the gateway code + parity tests).** The original claim that *every* `GE_*` maps to the generic core was over-simplified: it assumed the only special thing was the capacity-ref. Reading `rate_convert.h` and `test_topology_parity`, two of the three genuinely genericize **once `round: half_up` exists** (§3); the third carries a device-safety fail-safe that is *not* a transform and stays a namespaced extension (per the §6 extension policy). The mapping is:
+**Final outcome (proven in `predbat-gateway` PR #193 — all 47 native topology tests green, zero behaviour change).** *Every* `GE_*` maps to the generic core — **no vendor transform kind, and no manufacturer code in the engine at all.** It took three generic primitives beyond the original `{num,den}`: parameter **refs** (§4), a **`round`** mode (§3), and two degradation/robustness primitives — an **input clamp** (raw guard, expressible as a `pipeline` `clamp` step) and **`onRefUnavailable: max`** (fail-open: emit the clamp max when a `ref` is unresolved, vs the default `zero`). With those, even the `GE_RATE_HALF` "unrestricted when capacity unknown" fail-safe is generic data, not engine code. The mapping is:
 
-| Gateway enum | Generic core expression |
+| Gateway transform | Generic core expression |
 |---|---|
 | `IDENTITY` | `{ kind: identity }` |
-| `NEGATE_SCALE` (e.g. batt power) | `{ kind: ratio, num: <negative literal>, den }` (negative `num`), or `{ kind: pipeline, steps: [ratio, negate] }` |
+| `NEGATE_SCALE` (e.g. batt power) | `{ kind: negate }` (= `-raw·num/den`, num=den=1) |
 | `HHMM` | `{ kind: hhmm }` |
-| `GE_CAPACITY` (HR55: ×317 if "CH" else ×51.2) | `{ kind: ratio, num: <per-device-type literal>, den: <…> }` — the **descriptor** per device type carries the right numbers; the CH-vs-not condition is resolved at descriptor selection, not in the transform |
-| `GE_RATE_FULL` (HR313/314: read raw×rated/100 trunc; write watts→% **round half-up**, clamp 100) | read `{ kind: ratio, num: { ref: "rated_power" }, den: 100 }`; write `{ kind: pipeline, steps: [ { kind: ratio, num: 100, den: { ref: "rated_power" }, round: half_up }, { kind: clamp, max: 100 } ] }` |
-| `GE_RATE_HALF` (HR111/112) | **STAYS `x-givenergy:rate_half`** — beyond `round: half_up`, it scales by battery half-capacity AND carries an irreducible **fail-safe**: when capacity is unknown (`bat_half_w==0`) it writes 50 = *unrestricted* (never an under-scaled guess), and clamps to the register max 50. That fail-safe is device-safety behaviour, not a value transform, so per §6 it is a legitimate namespaced extension of last resort — not core. |
+| `GE_CAPACITY` (HR55: ×317 if "CH" else ×51.2) | `{ kind: ratio, num: <per-model literal>, den: <…> }` — the CH-vs-non-CH choice is **two device-type descriptors selected by serial fingerprint** (`GE-AIO` 317/1, `GE-AIO-LV` 512/10); the engine never sees a serial condition |
+| `GE_RATE_FULL` (HR313/314: read raw×rated/100 trunc; write watts→% round-half-up, clamp 100) | read `{ kind: ratio, num: { ref: "rated_power" }, den: 100 }`; write `{ kind: ratio, num: 100, den: { ref: "rated_power" }, round: half_up }` + clamp 100 |
+| `GE_RATE_HALF` (HR111/112: scale by battery half-capacity; round-half-up; clamp 50; **unrestricted (50) when capacity unknown**) | read `pipeline[ clamp(max:50), ratio(num: { ref: "capacity" }, den: 100) ]`; write `{ kind: ratio, num: 100, den: { ref: "capacity" }, round: half_up, onRefUnavailable: max }` + clamp 50 |
 
-So the rule holds in spirit — **no vendor name in a *core* kind** — but honestly: `GE_RATE_FULL`/`GE_CAPACITY` become core (with `round` + refs + per-family literals), and `GE_RATE_HALF` is an explicit `x-givenergy:*` extension. GivEnergy-ness is the *numbers*, the *refs*, the *round mode*, and — for the one irreducible case — a named extension.
+No `GE_` token, no `serial_is_ch`, no bespoke rate helpers survive in the engine. GivEnergy-ness is **entirely** the numbers, the refs, the round mode, the degradation policy, and the per-model descriptor selection — all data. This is the design goal realised: a handler that understands the spec with no per-manufacturer code.
 
 ## 8. Schema delta (0.2.0)
 
