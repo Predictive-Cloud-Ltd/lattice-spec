@@ -594,18 +594,21 @@ test("node tombstone needs only id; a normal node still needs kind", () => {
   assert.ok(validateNode({ id: "N1", removed: true }));
   assert.ok(validateNode({ id: "N1", kind: "inverter" }));
   assert.ok(!validateNode({ id: "N1" }), "non-removed node without kind must fail");
+  assert.ok(!validateNode({ id: "N1", removed: false }), "removed:false is not a tombstone — kind still required");
 });
 
 test("accessPath tombstone needs only id; a normal access path still needs provider", () => {
   assert.ok(validateAccessPath({ id: "ap", removed: true }));
   assert.ok(validateAccessPath({ id: "ap", provider: "gw" }));
   assert.ok(!validateAccessPath({ id: "ap" }), "non-removed access path without provider must fail");
+  assert.ok(!validateAccessPath({ id: "ap", removed: false }), "removed:false is not a tombstone — provider still required");
 });
 
 test("offer tombstone needs only capability; a normal offer still needs read/control/derived", () => {
   assert.ok(validateOffer({ capability: "battery.soc", removed: true }));
   assert.ok(validateOffer({ capability: "battery.soc", read: { protocol: "modbus", address: 1 } }));
   assert.ok(!validateOffer({ capability: "battery.soc" }), "non-removed offer without a binding must fail");
+  assert.ok(!validateOffer({ capability: "battery.soc", removed: false }), "removed:false is not a tombstone — a binding still required");
 });
 
 test("relationship may carry removed and still needs from/to/type", () => {
