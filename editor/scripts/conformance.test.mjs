@@ -300,6 +300,22 @@ test("controlGroup requires a control binding", () => {
   assert.ok(has(errors, 'controlGroup "g" but no control binding'));
 });
 
+test("the same capability may offer completely divergent control formats per access path", () => {
+  // battery.target_soc: local = scalar setpoint (L1 modbus); cloud = whole-schedule RMW, coupled (L2 cloud-api).
+  // Same capability + shared ref across access paths; divergent shape/tier/group/RMW is conformant (resolver picks by preference).
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter",
+      accessPaths: [{ id: "ap-local", provider: "p", preference: 10 }, { id: "ap-cloud", provider: "c", preference: 1 }],
+      capabilities: [
+        { capability: "battery.target_soc", ref: 1, accessPath: "ap-local", shape: "setpoint", tier: 1,
+          control: { protocol: "modbus", address: 82 } },
+        { capability: "battery.target_soc", ref: 1, accessPath: "ap-cloud", shape: "schedule", tier: 2, controlGroup: "cloud_plan",
+          control: { protocol: "cloud-api", address: "/x", readModifyWrite: true } },
+      ] }] }),
+  );
+  assert.deepEqual(errors, []);
+});
+
 test("transform: round accepts trunc/half_up/half_even", () => {
   for (const r of ["trunc", "half_up", "half_even"]) {
     assert.equal(validateTransform({ kind: "ratio", num: 100, den: 5000, round: r }), true, r);

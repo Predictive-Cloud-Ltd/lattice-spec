@@ -35,6 +35,10 @@ Notes:
 - A **schedule is applied atomically** — the whole plan is written (a natural read-modify-write). This is what dissolves the coupling/mode/RMW problem from #3: mode + power + target are *facets of a slot*, written together, not independently-poked registers.
 - For non-schedule devices that nonetheless have coupled writes (Solax's `(target, power, mode)` in one call), a **control group** (see §4) provides the same atomicity for `setpoint`/`switch`.
 
+### Shape is per access path — the same control can be completely divergent across paths
+
+`shape`, `tier`, `controlGroup` and `readModifyWrite` are properties of a **capability *offer*** (a `(capability, accessPath)` pair), not of the capability. So one physical control reached two ways — e.g. a battery's `battery.target_soc` over a **local gateway** and over the **vendor cloud** — may have completely divergent control formats: the local path a scalar `setpoint` (L1, one Modbus register), the cloud path a whole-plan `schedule` applied read-modify-write and coupled in a `controlGroup` (L2, one cloud POST). Both offers share the capability identity (and its data-plane `ref`); they diverge on binding, shape, tier, grouping and RMW independently. The resolver ranks a capability's offers by access-path `preference`, picks one (failing over on unavailability), and returns *that* path's shape + binding — the consumer expresses intent in the chosen shape, or an L2 provider absorbs the translation. A format that is none of the three shapes is carried by an L2 (provider-coded) binding, or — for an opaque vendor command — a namespaced `x-<vendor>:` capability; never a new core shape. (Worked example: `INV-0001` `battery.target_soc` in `0.1.0/examples/example-site.topology.json`.)
+
 ---
 
 ## 3. Intent vocabulary (per device class)
