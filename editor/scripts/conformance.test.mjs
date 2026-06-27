@@ -309,7 +309,8 @@ test("the same capability may offer completely divergent control formats per acc
       capabilities: [
         { capability: "battery.target_soc", ref: 1, accessPath: "ap-local", shape: "setpoint", tier: 1,
           control: { protocol: "modbus", address: 82 } },
-        { capability: "battery.target_soc", ref: 1, accessPath: "ap-cloud", shape: "schedule", tier: 2, controlGroup: "cloud_plan",
+        { capability: "battery.target_soc", ref: 1, accessPath: "ap-cloud", shape: "schedule", tier: 2,
+          scheduleSpec: { maxSlots: 8, slotFields: ["target_soc"], endBound: "inclusive", requiresDefaultMode: true },
           control: { protocol: "cloud-api", address: "/x", readModifyWrite: true } },
       ] }] }),
   );
@@ -440,6 +441,45 @@ test("control-group members must not collide on field or overlapping bits", () =
       ] }] }),
   );
   assert.ok(has(overlapBits, "overlaps"));
+});
+
+const validateSlot = ajvT.compile({ $ref: schema.$id + "#/$defs/scheduleSlot" });
+
+test("scheduleSlot: requires start/end/mode; rejects unknown fields", () => {
+  assert.equal(validateSlot({ start: "00:30", end: "04:30", mode: "force_charge", target_soc: 90 }), true);
+  assert.equal(validateSlot({ start: "00:30", end: "04:30" }), false); // missing mode
+  assert.equal(validateSlot({ start: "00:30", end: "04:30", mode: "x", wibble: 1 }), false); // unknown field
+});
+
+test("scheduleSpec: only valid slotFields + endBound (schema)", () => {
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "x", address: "/s" }, shape: "schedule", tier: 2,
+    scheduleSpec: { maxSlots: 8, slotFields: ["target_soc", "enable"], endBound: "inclusive", requiresDefaultMode: true } }), true);
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "x", address: "/s" }, shape: "schedule", tier: 2,
+    scheduleSpec: { slotFields: ["wibble"] } }), false); // unknown slot field
+  assert.equal(validateOffer({ capability: "battery.mode", control: { protocol: "x", address: "/s" }, shape: "schedule", tier: 2,
+    scheduleSpec: { endBound: "rounded" } }), false); // bad endBound
+});
+
+test("a schedule-shape offer must declare a scheduleSpec; scheduleSpec only on schedule offers", () => {
+  const missing = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.mode", ref: 1, accessPath: "ap", shape: "schedule", tier: 2,
+        control: { protocol: "cloud-api", op: "post", address: "/s" } }] }] }),
+  );
+  assert.ok(has(missing, 'shape "schedule" but no scheduleSpec'));
+  const misplaced = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.target_soc", ref: 1, accessPath: "ap", shape: "setpoint", tier: 1,
+        scheduleSpec: { maxSlots: 4 }, control: { protocol: "modbus", address: 1 } }] }] }),
+  );
+  assert.ok(has(misplaced, 'scheduleSpec but shape is not "schedule"'));
+  const ok = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.mode", ref: 1, accessPath: "ap", shape: "schedule", tier: 2,
+        scheduleSpec: { maxSlots: 8, slotFields: ["target_soc"], endBound: "inclusive", requiresDefaultMode: true },
+        control: { protocol: "cloud-api", op: "post", address: "/s", readModifyWrite: true } }] }] }),
+  );
+  assert.equal(has(ok, "scheduleSpec"), false);
 });
 
 test("ref-resolution and x-* reporting recurse through a control binding's pipeline.steps", () => {

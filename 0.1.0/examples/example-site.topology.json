@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 6,
+  "docVersion": 7,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -11,7 +11,8 @@
     { "key": "example-hybrid-inverter", "fingerprint": { "serialPrefix": "INV-" } },
     { "key": "example-evse",            "fingerprint": { "serialPrefix": "EVSE-" } },
     { "key": "example-meter",           "fingerprint": { "serialPrefix": "MTR-" } },
-    { "key": "example-heat-pump",       "fingerprint": { "serialPrefix": "HP-" } }
+    { "key": "example-heat-pump",       "fingerprint": { "serialPrefix": "HP-" } },
+    { "key": "example-fox-inverter",    "fingerprint": { "serialPrefix": "FOX-" } }
   ],
 
   "nodes": [
@@ -74,6 +75,7 @@
         {
           "capability": "battery.mode", "ref": 16, "accessPath": "gw-local", "unit": "mode",
           "shape": "schedule", "tier": 1,
+          "scheduleSpec": { "maxSlots": 10, "slotFields": ["target_soc", "reserve_soc", "charge_power_limit"], "endBound": "exclusive", "requiresDefaultMode": false },
           "control": { "protocol": "modbus", "op": "write_multi", "address": 91, "count": 6, "transform": { "kind": "identity" } }
         },
         {
@@ -170,6 +172,27 @@
           "constraints": { "min": 15, "max": 60, "scope": "capability" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } },
           "control": { "protocol": "modbus", "op": "write_single", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
+        }
+      ]
+    },
+    {
+      "id": "FOX-0001",
+      "kind": "inverter",
+      "deviceType": "example-fox-inverter",
+      "attributes": { "ratedW": 5000, "capacityWh": 10000 },
+      "accessPaths": [
+        { "id": "fox-cloud", "provider": "fox-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 5 }
+      ],
+      "capabilities": [
+        {
+          "capability": "battery.soc", "ref": 50, "accessPath": "fox-cloud", "unit": "%",
+          "read": { "protocol": "cloud-api", "op": "get", "address": "/op/v0/device/real/query#SoC", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.mode", "ref": 51, "accessPath": "fox-cloud", "unit": "mode",
+          "shape": "schedule", "tier": 2,
+          "scheduleSpec": { "maxSlots": 8, "slotFields": ["target_soc", "reserve_soc", "charge_power_limit", "enable"], "endBound": "inclusive", "requiresDefaultMode": true },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/op/v1/device/scheduler/enable", "transform": { "kind": "identity" }, "readModifyWrite": true }
         }
       ]
     }

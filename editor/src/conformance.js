@@ -182,6 +182,14 @@ export function checkSemanticInvariants(doc, options = {}) {
           add(errors, label, `node "${nodeId}" capability "${capName}" has a control binding but no tier`);
         }
       }
+      // A schedule-shape offer must declare its schedule surface so a consumer can build a valid plan.
+      if (capability.shape === "schedule" && !capability.scheduleSpec) {
+        add(errors, label, `node "${nodeId}" capability "${capName}" has shape "schedule" but no scheduleSpec`);
+      }
+      // scheduleSpec is only meaningful on a schedule-shape offer.
+      if (capability.scheduleSpec && capability.shape !== "schedule") {
+        add(errors, label, `node "${nodeId}" capability "${capName}" has a scheduleSpec but shape is not "schedule"`);
+      }
       // A control group is a coupled WRITE; a member without a control binding is meaningless.
       if (capability.controlGroup && !capability.control) {
         add(errors, label, `node "${nodeId}" capability "${capName}" has controlGroup "${capability.controlGroup}" but no control binding`);

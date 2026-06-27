@@ -108,13 +108,14 @@
         "constraints": { "$ref": "#/$defs/constraints" },
         "shape": {
           "enum": ["setpoint", "switch", "schedule"],
-          "description": "How the device accepts a control intent for this capability: a numeric value effective now (setpoint), an enum/on-off effective now (switch), or a time-windowed plan applied atomically (schedule). Required on an offer that carries a `control` binding. The schedule payload is an ordered list of slots {start,end,mode,charge_power_limit?,target_soc?,reserve_soc?} + a default mode — a control-time contract (see the control-model design doc), not part of this document."
+          "description": "How the device accepts a control intent for this capability: a numeric value effective now (setpoint), an enum/on-off effective now (switch), or a time-windowed plan applied atomically (schedule). Required on an offer that carries a `control` binding. A `schedule` offer also declares a `scheduleSpec` (its slot count, honoured slot fields, end-bound and default-mode needs); the plan a consumer sends is an ordered list of `$defs/scheduleSlot` (a control-time payload, not topology data)."
         },
         "controlGroup": {
           "type": "string",
           "description": "Name of a coupled-write group. Capabilities on the same node sharing a controlGroup resolve and execute as ONE atomic operation (e.g. Solax (mode,target,power)); the resolver gathers all members' values, reading current state for any the consumer didn't supply. With ≥2 members, each declares a `groupSlot` saying where its value goes in the one operation."
         },
         "groupSlot": { "$ref": "#/$defs/groupSlot" },
+        "scheduleSpec": { "$ref": "#/$defs/scheduleSpec" },
         "tier": {
           "enum": [1, 2],
           "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
@@ -138,6 +139,37 @@
             "width": { "type": "integer", "minimum": 1, "description": "number of bits this member occupies." }
           }
         }
+      }
+    },
+    "scheduleSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "On a `shape: schedule` offer: the device's schedule SURFACE — enough for a consumer to build a valid plan with no per-vendor knowledge. The plan it sends is an ordered list of `scheduleSlot`s (a control-time payload, not topology data).",
+      "properties": {
+        "maxSlots": { "type": "integer", "minimum": 1, "description": "maximum number of slots the device accepts (e.g. Fox 8)." },
+        "slotFields": {
+          "type": "array",
+          "items": { "enum": ["target_soc", "reserve_soc", "charge_power_limit", "discharge_power_limit", "enable"] },
+          "description": "optional per-slot refinements this device honours, beyond the always-present {start, end, mode}."
+        },
+        "endBound": { "enum": ["exclusive", "inclusive"], "default": "exclusive", "description": "whether a slot's `end` time is exclusive (default) or inclusive (e.g. Fox treats the end minute as inclusive)." },
+        "requiresDefaultMode": { "type": "boolean", "default": false, "description": "true if the device needs a default `battery.mode` for time not covered by any slot." }
+      }
+    },
+    "scheduleSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "mode"],
+      "description": "One segment of a `schedule`-shape control plan — a CONTROL-TIME payload a consumer sends, not part of a topology document. `start`/`end` are HH:MM local (end interpreted per the offer's scheduleSpec.endBound); `mode` is a `battery.mode` scheme; optional refinements must be a subset of the offer's scheduleSpec.slotFields.",
+      "properties": {
+        "start": { "type": "string", "description": "HH:MM (local)" },
+        "end": { "type": "string", "description": "HH:MM (local); exclusive or inclusive per scheduleSpec.endBound" },
+        "mode": { "type": "string", "description": "battery.mode scheme for this window (e.g. force_charge, self_use)" },
+        "target_soc": { "type": "number" },
+        "reserve_soc": { "type": "number" },
+        "charge_power_limit": { "type": "number" },
+        "discharge_power_limit": { "type": "number" },
+        "enable": { "type": "boolean" }
       }
     },
     "capabilityName": {

@@ -24,7 +24,7 @@ This is the second-implementer stress test the model needed (everything prior wa
 
 | # | Gap | Forced by | Status |
 |---|-----|-----------|--------|
-| 1 | **Schedule slot payload** unschematized (needs ≥2 SoC fields, per-slot enable, default-fill, inclusive-minute) | Fox `groups[]`, GE slots | open (was deferred) |
+| 1 | **Schedule slot payload** unschematized (needs ≥2 SoC fields, per-slot enable, default-fill, inclusive-minute) | Fox `groups[]`, GE slots | **ADDRESSED** (`$defs/scheduleSlot` + offer `scheduleSpec`) |
 | 2 | **Coupled-binding field map** — which capability → which payload field (+ per-member transform, e.g. signed shared field) | Solax `soc_target_control_mode` | **ADDRESSED here** (`groupSlot.field`) |
 | 3 | **Bit-field binding** — multiple capabilities own bit-ranges of one register, RMW | Solis CID 636 | **ADDRESSED here** (`groupSlot.bits`) |
 | 4 | **One capability → many fixed writes** ("write macro") | Growatt/Deye/Sofar enable | open (or accept as L2) |
@@ -48,8 +48,8 @@ The member's own `control.transform` still applies (e.g. negate a discharge valu
 
 ## 6. Roadmap for the remaining gaps (priority order)
 
-1. **Schedule slot schema (#1)** — highest value next; battery control is *primarily* schedules. Define `scheduleSlot` (`{start, end, mode, target_soc?, reserve_soc?, charge_power_limit?, discharge_power_limit?, enable?}`) + a default mode; an `encoding` note for inclusive-minute / packed-string variants (#8).
-2. **Multi-input derived reads (#6)** — finish the read-model doc's derived-binding grammar (tiny safe evaluator over declared capabilities).
+1. ~~**Schedule slot schema (#1)**~~ — **DONE.** `$defs/scheduleSlot` (`{start, end, mode, target_soc?, reserve_soc?, charge_power_limit?, discharge_power_limit?, enable?}`) + an offer `scheduleSpec` (maxSlots, slotFields, endBound exclusive/inclusive, requiresDefaultMode). Conformance: schedule⇒scheduleSpec; scheduleSpec⇒schedule. Worked examples: GE `battery.mode` (gw-local) + a Fox-shaped `FOX-0001` (cloud, 8 slots, inclusive end, RMW). `endBound` covers the inclusive-minute half of #8; the packed-string variant is still open.
+2. **Multi-input derived reads (#6)** — finish the read-model doc's derived-binding grammar (tiny safe evaluator over declared capabilities). Now the highest-value next.
 3. **Runtime-sourced constraints (#7)** — let `constraints.min`/`max` be `{ source: capability }` (reuse the `paramValue` mechanism — cheap).
 4. **Identity correlation (#5)** — a node `aliases`/identity-map so a cloud `plant_id`+`sn` and a local `serial` merge to one node.
-5. **Write-macro (#4)** — decide: a declarative multi-write construct, or formally accept the per-vendor enable macro as L2. Lower urgency (L2 already covers it).
+5. **Write-macro (#4)** + **packed-string encoding (#8 remainder)** — decide: declarative constructs, or formally accept as L2. Lower urgency (L2 covers them).
