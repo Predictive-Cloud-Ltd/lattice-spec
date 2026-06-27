@@ -65,9 +65,9 @@ A param value is **either a literal or a reference** to a declared node value:
 
 This is the single new capability versus 0.1.0, and it is what lets every vendor "rate" transform become generic.
 
-## 5. Derived bindings (multi-input) — defer to the read-model doc
+## 5. Derived bindings (multi-input) — IMPLEMENTED
 
-When a value is calculated from **more than one** input (`Ah_register × voltage_register`), that's a *derived binding* — a small declared expression over other capabilities/attributes with a tiny safe evaluator, specified in the **Read Model** companion (§4 "Derived bindings"). This doc's `affine`+ref covers the single-input parameterised case; the derived-binding expression covers genuine multi-input calculation. The **declared/derived vs estimated/learned** line from that doc holds: deterministic functions of declared inputs only — never consumer-side analytics (PredBat calibration, degradation).
+When a value is calculated from **more than one** input (`load = pv − battery − grid`; `usable = remaining × 100 / soc`), that's a *derived binding* — now `$defs/derived` on a capability offer (in place of a `read`): `op: "sum"` (Σ weight×input) or `op: "ratio"` (factor×num/den), referencing sibling capabilities by `class.function`. The resolver gathers the inputs' current values and evaluates. This doc's `affine`/`ratio`+ref covers the single-input parameterised case (and `Ah × nominal_voltage` via the `nominal_voltage` node param); `derived` covers genuine multi-input calculation. Deliberately **not** a general expression DSL — the narrow op set covers every observed read (n=4 vendor analysis). The **declared/derived vs estimated/learned** line holds: deterministic functions of declared inputs only — never consumer-side analytics (PredBat calibration, degradation). Conformance resolves input refs, rejects cycles, and forbids a `control` on a derived (computed) value.
 
 ## 6. Extension policy
 

@@ -91,6 +91,12 @@ function ResultView({ res }: { res: ResolveResult }) {
           ))}
         </span>
       </div>
+      {res.derived && (
+        <div className="rline">
+          <span className="rk">derived</span>
+          <span><strong>{res.derived}</strong> <span className="muted small">— computed from sibling capabilities (no register read)</span></span>
+        </div>
+      )}
       {res.fellBack && res.ok && <div className="rnote">↳ preferred path offline — <strong>fell back</strong> to <code>{res.chosenAccessPath}</code></div>}
       {!res.ok && res.message && <div className="rnote bad">{res.message}</div>}
 

@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 7,
+  "docVersion": 8,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -29,6 +29,22 @@
         {
           "capability": "meter.grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
           "read": { "protocol": "modbus", "op": "read_input", "address": 100, "encoding": "i16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "pv.power", "ref": 3, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 101, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.power", "ref": 4, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 102, "encoding": "i16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "meter.load_power", "ref": 5, "unit": "W",
+          "derived": { "op": "sum", "inputs": [
+            { "ref": "pv.power", "weight": 1 },
+            { "ref": "meter.grid_power", "weight": -1 },
+            { "ref": "battery.power", "weight": -1 }
+          ] }
         },
         {
           "capability": "battery.charge_power_limit", "ref": 2, "accessPath": "gw-local", "unit": "W",
