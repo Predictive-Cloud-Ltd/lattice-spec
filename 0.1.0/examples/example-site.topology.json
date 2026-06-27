@@ -1,7 +1,7 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
   "topologyVersion": "0.1.0",
-  "docVersion": 3,
+  "docVersion": 4,
   "id": "site:example-home",
   "scope": "site",
   "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
@@ -75,7 +75,13 @@
           "shape": "setpoint", "tier": 1, "controlGroup": "soc_target",
           "constraints": { "min": 0, "max": 100, "scope": "capability" },
           "read":    { "protocol": "modbus", "op": "read_holding", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } },
-          "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" }, "readModifyWrite": true }
+          "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.target_soc", "ref": 13, "accessPath": "vendor-cloud", "unit": "%",
+          "shape": "schedule", "tier": 2, "controlGroup": "cloud_plan",
+          "constraints": { "min": 0, "max": 100, "scope": "capability" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/schedule", "transform": { "kind": "identity" }, "readModifyWrite": true }
         },
         {
           "capability": "battery.mode", "ref": 16, "accessPath": "gw-local", "unit": "mode",
