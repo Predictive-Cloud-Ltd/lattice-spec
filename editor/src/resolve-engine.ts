@@ -31,6 +31,7 @@ export type ResolveResult = {
   shape?: string;
   tier?: number;
   controlGroup?: string;
+  groupMembers?: string[];
   intent?: number;
   clamped?: number;
   clampMin?: number;
@@ -214,6 +215,12 @@ export function resolve(
   result.shape = chosenOffer.shape;
   result.tier = chosenOffer.tier;
   result.controlGroup = chosenOffer.controlGroup;
+  if (side === "control" && chosenOffer.controlGroup) {
+    // The group resolves + executes as one op: gather the sibling members on this node + access path.
+    result.groupMembers = (node.capabilities ?? [])
+      .filter((o: any) => o?.controlGroup === chosenOffer.controlGroup && o?.accessPath === chosenOffer.accessPath)
+      .map((o: any) => String(o.capability));
+  }
 
   if (side === "control" && intent != null && !Number.isNaN(intent)) {
     const cons = chosenOffer.constraints ?? {};

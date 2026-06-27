@@ -33,7 +33,7 @@ const has = (errors, substr) => errors.some((e) => e.includes(substr));
 
 test("fragment without data-plane fields is conformant (description-only)", () => {
   const errors = checkSemanticInvariants(
-    fragment({ nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "soc", read: {} }] }] }),
+    fragment({ nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "battery.soc", read: {} }] }] }),
   );
   assert.deepEqual(errors, []);
 });
@@ -42,17 +42,17 @@ test("site doc demands docVersion + per-capability ref/accessPath", () => {
   const errors = checkSemanticInvariants(
     site({
       docVersion: undefined,
-      nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "soc", read: {} }] }],
+      nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "battery.soc", read: {} }] }],
     }),
   );
   assert.ok(has(errors, "docVersion must be an integer"));
-  assert.ok(has(errors, 'capability "soc" is missing accessPath'));
-  assert.ok(has(errors, 'capability "soc" must define integer ref'));
+  assert.ok(has(errors, 'capability "battery.soc" is missing accessPath'));
+  assert.ok(has(errors, 'capability "battery.soc" must define integer ref'));
 });
 
 test("requireDataPlane override forces strictness on a fragment", () => {
   const errors = checkSemanticInvariants(
-    fragment({ nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "soc", read: {} }] }] }),
+    fragment({ nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "battery.soc", read: {} }] }] }),
     { requireDataPlane: true },
   );
   assert.ok(has(errors, "docVersion must be an integer"));
@@ -111,14 +111,14 @@ test("#4 duplicate capability/accessPath offer inside a descriptor template is c
         {
           key: "tmpl",
           capabilities: [
-            { capability: "soc", accessPath: "a", read: {} },
-            { capability: "soc", accessPath: "a", read: {} },
+            { capability: "battery.soc", accessPath: "a", read: {} },
+            { capability: "battery.soc", accessPath: "a", read: {} },
           ],
         },
       ],
     }),
   );
-  assert.ok(has(errors, 'deviceType "tmpl" repeats capability/accessPath "soc|a"'));
+  assert.ok(has(errors, 'deviceType "tmpl" repeats capability/accessPath "battery.soc|a"'));
 });
 
 test("#8 serving aggregator without an `over` relation is reported in a site doc", () => {
@@ -330,10 +330,61 @@ test("transform: round is optional (absent is valid, defaults to trunc)", () => 
   assert.equal(validateTransform({ kind: "ratio", num: 1, den: 10 }), true);
 });
 
-test("transform: onRefUnavailable accepts zero/max, rejects others", () => {
-  assert.equal(validateTransform({ kind: "ratio", num: 100, den: { ref: "capacity" }, onRefUnavailable: "max" }), true);
+test("transform: onRefUnavailable accepts zero/max (max requires a max value), rejects others", () => {
+  assert.equal(validateTransform({ kind: "ratio", num: 100, den: { ref: "capacity" }, max: 50, onRefUnavailable: "max" }), true);
   assert.equal(validateTransform({ kind: "ratio", num: 100, den: { ref: "capacity" }, onRefUnavailable: "zero" }), true);
+  // onRefUnavailable: "max" without a `max` value is rejected — an executor can't know what to emit.
+  assert.equal(validateTransform({ kind: "ratio", num: 100, den: { ref: "capacity" }, onRefUnavailable: "max" }), false);
   assert.equal(validateTransform({ kind: "ratio", num: 1, den: 2, onRefUnavailable: "open" }), false);
+});
+
+test("a node parameter may be a static literal or a runtime { source: capability }", () => {
+  const ok = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", parameters: { rated_power: 5000, capacity: { source: "battery.capacity" } },
+      accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", unit: "W", shape: "setpoint", tier: 1,
+        control: { protocol: "modbus", address: 1, transform: { kind: "ratio", num: 100, den: { ref: "capacity" }, round: "half_up", max: 50, onRefUnavailable: "max" } } }] }] }),
+  );
+  assert.equal(has(ok, "has no matching node parameter"), false);
+});
+
+test("a bare (unqualified) capability name is rejected; class.function and x-* pass", () => {
+  const bare = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "heat_pump", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "temperature", ref: 1, accessPath: "ap", read: { protocol: "modbus", address: 1 } }] }] }),
+  );
+  assert.ok(has(bare, 'capability "temperature" is not class.function'));
+  const ok = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "heat_pump", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [
+        { capability: "thermal.temperature", ref: 1, accessPath: "ap", read: { protocol: "modbus", address: 1 } },
+        { capability: "x-acme:widget", ref: 2, accessPath: "ap", read: { protocol: "modbus", address: 2 } },
+      ] }] }),
+  );
+  assert.equal(has(ok, "not class.function"), false);
+});
+
+test("control-group members must share one binding (one atomic operation)", () => {
+  const oneOp = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
+      capabilities: [
+        { capability: "battery.target_soc", ref: 1, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+          control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
+        { capability: "battery.charge_power_limit", ref: 2, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+          control: { protocol: "cloud-api", op: "post", address: "/coupled" } },
+      ] }] }),
+  );
+  assert.equal(has(oneOp, "must share one control binding"), false);
+  const twoOps = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "c", provider: "x" }],
+      capabilities: [
+        { capability: "battery.target_soc", ref: 1, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+          control: { protocol: "cloud-api", op: "post", address: "/a" } },
+        { capability: "battery.charge_power_limit", ref: 2, accessPath: "c", shape: "setpoint", tier: 2, controlGroup: "g",
+          control: { protocol: "cloud-api", op: "post", address: "/b" } },
+      ] }] }),
+  );
+  assert.ok(has(twoOps, 'controlGroup "g" members must share one control binding'));
 });
 
 test("ref-resolution and x-* reporting recurse through a control binding's pipeline.steps", () => {
