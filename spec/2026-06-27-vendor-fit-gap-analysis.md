@@ -30,7 +30,7 @@ This is the second-implementer stress test the model needed (everything prior wa
 | 4 | **One capability → many fixed writes** ("write macro") | Growatt/Deye/Sofar enable | open (or accept as L2) |
 | 5 | **Cross-producer identity correlation** (plant-id vs serial) | Solax, Solis | open (flagged in #3 issue) |
 | 6 | **Multi-input derived reads** (`load = pv − batt − grid`, etc.) | all | **ADDRESSED** (`$defs/derived` — `sum`/`ratio` over sibling capabilities) |
-| 7 | **Runtime-sourced constraints** (clamp bound read from device) | Fox `fdpwr_max`/`fdsoc_min` | open (reuse `{source}` for constraint bounds) |
+| 7 | **Runtime-sourced constraints** (clamp bound read from device) | Fox `fdpwr_max`/`fdsoc_min` | **ADDRESSED** (`constraints.min`/`max` may be `{ source: capability }`) |
 | 8 | **Encoding variants** (inclusive minute; whole-schedule-as-string) | Fox, Solis V1 | open (binding encoding layer) |
 
 ## 4. The honest meta-finding
@@ -50,6 +50,8 @@ The member's own `control.transform` still applies (e.g. negate a discharge valu
 
 1. ~~**Schedule slot schema (#1)**~~ — **DONE.** `$defs/scheduleSlot` (`{start, end, mode, target_soc?, reserve_soc?, charge_power_limit?, discharge_power_limit?, enable?}`) + an offer `scheduleSpec` (maxSlots, slotFields, endBound exclusive/inclusive, requiresDefaultMode). Conformance: schedule⇒scheduleSpec; scheduleSpec⇒schedule. Worked examples: GE `battery.mode` (gw-local) + a Fox-shaped `FOX-0001` (cloud, 8 slots, inclusive end, RMW). `endBound` covers the inclusive-minute half of #8; the packed-string variant is still open.
 2. ~~**Multi-input derived reads (#6)**~~ — **DONE.** `$defs/derived` = `sum` (Σ weight×input) or `ratio` (factor×num/den) over sibling capabilities; conformance resolves input refs + rejects cycles + a derived value isn't writable; derived offers are transport-exempt (no accessPath). Example: GW-0001 `meter.load_power = pv − grid − battery`. (A general expression DSL is still deliberately out — narrow op set covers the observed reads.)
-3. **Runtime-sourced constraints (#7)** — let `constraints.min`/`max` be `{ source: capability }` (reuse the `paramValue` mechanism — cheap). Now the highest-value next.
+3. ~~**Runtime-sourced constraints (#7)**~~ — **DONE.** `constraints.min`/`max` may be `{ source: capability }`; conformance resolves it to a sibling capability/parameter. Example: FOX-0001 `battery.charge_power_limit` max ← `battery.power_limit_max` (Fox's device-reported `fdpwr_max`).
 4. **Identity correlation (#5)** — a node `aliases`/identity-map so a cloud `plant_id`+`sn` and a local `serial` merge to one node.
 5. **Write-macro (#4)** + **packed-string encoding (#8 remainder)** — decide: declarative constructs, or formally accept as L2. Lower urgency (L2 covers them).
+
+**Status (2026-06-27):** gaps #1, #2, #3, #6, #7 closed — the control-payload and read-derivation layers are complete. The model absorbed Fox/Solax/Solis/Modbus with only ADDITIVE constructs; the core (topology, read≠control routing, ranked fallback, transforms, tiers) is unchanged. Remaining #5/#4/#8 are narrow and L2 already covers the control side — **pausing construct-building here**; the next round should be triggered by an external adopter or #145 being wired into the live gateway driver (which will surface the *real* next requirements better than further synthetic modelling).

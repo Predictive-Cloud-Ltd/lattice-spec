@@ -157,6 +157,15 @@ export function checkSemanticInvariants(doc, options = {}) {
       if (capability.constraints?.max === "rated" && typeof node.attributes?.ratedW !== "number") {
         add(errors, label, `node "${nodeId}" capability "${capName}" uses max "rated" without attributes.ratedW`);
       }
+      // A runtime-sourced constraint bound ({ source }) must resolve to a sibling capability or node parameter.
+      for (const which of ["min", "max"]) {
+        const bound = capability.constraints?.[which];
+        if (bound && typeof bound === "object" && typeof bound.source === "string") {
+          if (!nodeCapNames.has(bound.source) && !nodeParamNames.includes(bound.source)) {
+            add(errors, label, `node "${nodeId}" capability "${capName}" constraint ${which} source "${bound.source}" is not a capability or parameter on this node`);
+          }
+        }
+      }
 
       // Transform parameter references must resolve to a declared node parameter.
       const nodeParams = node.parameters && typeof node.parameters === "object" ? node.parameters : {};

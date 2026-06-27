@@ -81,6 +81,10 @@ function childCount(doc: Doc, nodeId: string, rel: string): number {
 
 function resolveMax(maxSpec: unknown, node: any): { value?: number; label: string } {
   if (typeof maxSpec === "number") return { value: maxSpec, label: String(maxSpec) };
+  if (maxSpec && typeof maxSpec === "object" && "source" in (maxSpec as any)) {
+    // runtime-sourced bound — value only known at execution time
+    return { label: `source ${(maxSpec as any).source}` };
+  }
   const rated = node?.attributes?.ratedW;
   const cap = node?.attributes?.capacityWh;
   if (maxSpec === "rated") return { value: rated, label: `rated = ${rated ?? "?"}` };

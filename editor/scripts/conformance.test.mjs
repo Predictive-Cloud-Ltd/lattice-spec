@@ -443,6 +443,35 @@ test("control-group members must not collide on field or overlapping bits", () =
   assert.ok(has(overlapBits, "overlaps"));
 });
 
+const validateOfferC = ajvT.compile({ $ref: schema.$id + "#/$defs/capabilityOffer" });
+
+test("constraints: a bound may be number, string sentinel, or { source: capability }", () => {
+  assert.equal(validateOfferC({ capability: "battery.charge_power_limit", control: { protocol: "x", address: 1 }, shape: "setpoint", tier: 1,
+    constraints: { min: 0, max: { source: "battery.power_limit_max" } } }), true);
+  assert.equal(validateOfferC({ capability: "battery.charge_power_limit", control: { protocol: "x", address: 1 }, shape: "setpoint", tier: 1,
+    constraints: { max: "rated" } }), true);
+  assert.equal(validateOfferC({ capability: "battery.charge_power_limit", control: { protocol: "x", address: 1 }, shape: "setpoint", tier: 1,
+    constraints: { max: { src: "x" } } }), false); // wrong key
+});
+
+test("a runtime-sourced constraint bound must resolve to a sibling capability/parameter", () => {
+  const bad = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [{ capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", shape: "setpoint", tier: 1,
+        constraints: { max: { source: "battery.power_limit_max" } }, control: { protocol: "modbus", address: 1 } }] }] }),
+  );
+  assert.ok(has(bad, 'constraint max source "battery.power_limit_max" is not a capability or parameter'));
+  const ok = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
+      capabilities: [
+        { capability: "battery.power_limit_max", ref: 2, accessPath: "ap", read: { protocol: "modbus", address: 2 } },
+        { capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", shape: "setpoint", tier: 1,
+          constraints: { max: { source: "battery.power_limit_max" } }, control: { protocol: "modbus", address: 1 } },
+      ] }] }),
+  );
+  assert.equal(has(ok, "constraint max source"), false);
+});
+
 const validateDerived = ajvT.compile({ $ref: schema.$id + "#/$defs/derived" });
 
 test("derived: sum and ratio shapes accepted; malformed rejected", () => {

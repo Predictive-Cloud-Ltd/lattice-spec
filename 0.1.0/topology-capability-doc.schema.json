@@ -320,14 +320,27 @@
     "constraints": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Bounds/valid-set/interlocks resolution must respect. May be static or a derived expression.",
+      "description": "Bounds/valid-set/interlocks resolution must respect. A bound may be static (a number), a derived-expression sentinel string ('rated', 'min(capacity/2, rated)'), or runtime-sourced from a device-reported capability ({ source: '<capability>' }) — e.g. Fox's fdpwr_max / fdsoc_min read from the device and used to clamp writes.",
       "properties": {
-        "min": { "type": ["number", "string"] },
-        "max": { "type": ["number", "string"], "description": "A number, or a derived expression like 'min(capacity/2, rated)'." },
+        "min": { "$ref": "#/$defs/constraintBound" },
+        "max": { "$ref": "#/$defs/constraintBound", "description": "A number, a derived-expression string ('min(capacity/2, rated)'), or { source: capability } resolved at runtime." },
         "validSet": { "type": "array" },
         "rateLimit": { "type": "number", "description": "Max rate-of-change." },
         "scope": { "enum": ["capability", "node", "site"], "default": "capability", "description": "site = e.g. max grid import, G98/G99 export limit." }
       }
+    },
+    "constraintBound": {
+      "description": "A constraint bound: a static number, a sentinel/derived-expression string, or a runtime value sourced from a device-reported capability.",
+      "oneOf": [
+        { "type": "number" },
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["source"],
+          "additionalProperties": false,
+          "properties": { "source": { "$ref": "#/$defs/capabilityName", "description": "capability whose latest value supplies this bound at runtime (e.g. a device-reported power cap)" } }
+        }
+      ]
     },
     "deviceType": {
       "type": "object",
