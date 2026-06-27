@@ -314,6 +314,12 @@ test("transform: round is optional (absent is valid, defaults to trunc)", () => 
   assert.equal(validateTransform({ kind: "ratio", num: 1, den: 10 }), true);
 });
 
+test("transform: onRefUnavailable accepts zero/max, rejects others", () => {
+  assert.equal(validateTransform({ kind: "ratio", num: 100, den: { ref: "capacity" }, onRefUnavailable: "max" }), true);
+  assert.equal(validateTransform({ kind: "ratio", num: 100, den: { ref: "capacity" }, onRefUnavailable: "zero" }), true);
+  assert.equal(validateTransform({ kind: "ratio", num: 1, den: 2, onRefUnavailable: "open" }), false);
+});
+
 test("ref-resolution and x-* reporting recurse through a control binding's pipeline.steps", () => {
   const doc = site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap", provider: "p" }],
     capabilities: [{ capability: "battery.charge_power_limit", ref: 1, accessPath: "ap", shape: "setpoint", tier: 1,
