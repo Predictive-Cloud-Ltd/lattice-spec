@@ -24,13 +24,16 @@
       "additionalProperties": true,
       "properties": {
         "name": { "type": "string" },
-        "provider": { "type": "string", "description": "Provider/transport identity backing this producer's access paths.", "examples": ["predbat-gateway", "givenergy-cloud", "solis-cloud", "enode", "predbat-cloud"] }
+        "provider": { "type": "string", "description": "Provider/transport identity backing this producer's access paths.", "examples": ["predbat-gateway", "givenergy-cloud", "solis-cloud", "enode", "predbat-cloud"] },
+        "authority": { "type": "integer", "default": 0, "description": "Precedence in a merge: higher wins; docVersion recency breaks ties. On-device discovery = low (0); installer/cloud overlays higher." }
       }
     },
     "node": {
       "type": "object",
-      "required": ["id", "kind"],
       "additionalProperties": false,
+      "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
+      "then": { "required": ["id"] },
+      "else": { "required": ["id", "kind"] },
       "properties": {
         "id": { "type": "string", "description": "Stable identity (e.g. a serial). THE merge key across producers — the same id from two producers is one node with both their access paths." },
         "kind": { "$ref": "#/$defs/nodeKind" },
@@ -39,7 +42,8 @@
         "parameters": { "$ref": "#/$defs/nodeParameters" },
         "accessPaths": { "type": "array", "items": { "$ref": "#/$defs/accessPath" }, "description": "Ways this producer can reach the node. The consumer merges + ranks all producers' access paths to the same id." },
         "aggregate": { "$ref": "#/$defs/aggregate" },
-        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } }
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this node (keyed by id) is removed from the merged result; only `id` is required." }
       }
     },
     "nodeKind": {
@@ -66,15 +70,18 @@
     },
     "accessPath": {
       "type": "object",
-      "required": ["id", "provider"],
       "additionalProperties": true,
       "description": "A way to reach this node's capabilities via a provider/transport.",
+      "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
+      "then": { "required": ["id"] },
+      "else": { "required": ["id", "provider"] },
       "properties": {
         "id": { "type": "string", "description": "Referenced by capabilityOffer.accessPath." },
         "provider": { "type": "string" },
         "locality": { "enum": ["local", "cloud"] },
         "transport": { "type": "string", "examples": ["modbus", "ocpp", "http", "cloud-api"] },
-        "preference": { "type": "integer", "default": 0, "description": "Higher = preferred; the consumer fails over to the next-highest on unavailability." }
+        "preference": { "type": "integer", "default": 0, "description": "Higher = preferred; the consumer fails over to the next-highest on unavailability." },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this access path (keyed by id) is removed; only `id` is required." }
       }
     },
     "aggregate": {
@@ -93,7 +100,9 @@
       "type": "object",
       "required": ["capability"],
       "additionalProperties": false,
-      "anyOf": [{ "required": ["read"] }, { "required": ["control"] }, { "required": ["derived"] }],
+      "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
+      "then": true,
+      "else": { "anyOf": [{ "required": ["read"] }, { "required": ["control"] }, { "required": ["derived"] }] },
       "description": "A capability this node offers on a given access path, with read and/or control binding(s), aggregation semantics and constraints. The same capability may appear multiple times on one node (one per access path) — the consumer ranks them by access-path preference (this is how 'control via gateway OR cloud, with fallback' is expressed).",
       "properties": {
         "capability": { "$ref": "#/$defs/capabilityName" },
@@ -120,7 +129,8 @@
         "tier": {
           "enum": [1, 2],
           "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
-        }
+        },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this offer (keyed by capability+accessPath) is removed; only `capability` is required." }
       }
     },
     "groupSlot": {
@@ -373,7 +383,8 @@
       "properties": {
         "from": { "type": "string", "description": "subject node id" },
         "to": { "type": "string", "description": "object node id" },
-        "type": { "$ref": "#/$defs/relationType" }
+        "type": { "$ref": "#/$defs/relationType" },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this relationship is removed from the merged result." }
       }
     }
   }
