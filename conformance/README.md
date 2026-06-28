@@ -112,11 +112,45 @@ A divergence is either a bug in that implementation or a deliberate behaviour ch
 case update `cases.json`/regenerate `expected.json` in the **same** change across all runners,
 and review the diff. The golden is the contract; it should never drift silently.
 
+## merge/ — overlay/merge conformance
+
+Pins the **export + overlay/merge contract**: how producer fragments and upstream overlays compose
+into one `site` document. The reference is the editor's `src/merge-engine.ts` (`merge(docs) -> {site, warnings}`),
+a pure, identity-keyed, authority-ranked function (see `spec/2026-06-28-export-overlay-merge.md`).
+
+### Case format (`merge/cases.json`)
+
+```jsonc
+{ "name": "unique key into expected.json",
+  "inputs": [ /* an ordered list of schema-valid docs (fragments/overlays), each with producer.authority */ ] }
+```
+
+### Observable result (`merge/expected.json`)
+
+Per case, the JSON-normalised `{ site, warnings }`:
+- `site` — the merged `scope:"site"` document (nodes, relationships, minted `ref`s, top-level identity from the highest-authority input).
+- `warnings` — non-fatal notes (equal-precedence scalar conflicts, dropped dangling relationships).
+
+### Running / adopting
+
+```bash
+cd editor
+npm run build:ref      # compile resolve-engine.ts + merge-engine.ts → scripts/.gen/
+npm run test:merge     # engine unit tests + corpus deepEqual against expected.json
+npm run merge:record   # regenerate expected.json after an intentional behaviour change
+```
+
+Another language adopts the corpus exactly like `resolve/`: read `cases.json`, run its `merge`,
+JSON-normalise `{site, warnings}`, assert structural equality against `expected[case.name]`. A divergence
+is a bug or a deliberate change — in the latter case update across all runners and review the diff.
+
 ## Regenerating the golden
 
-`npm run resolve:record` rewrites `expected.json` from the TypeScript reference. Run it only
+`npm run resolve:record` rewrites `resolve/expected.json` from the TypeScript reference. Run it only
 after an **intentional** behaviour change, then review the diff — an unexpected line in that
 diff is a regression caught early.
+
+Likewise, `npm run merge:record` regenerates `merge/expected.json` from the reference merge engine.
 
 ## Scope (today)
 

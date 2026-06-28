@@ -43,6 +43,23 @@ export function checkSemanticInvariants(doc, options = {}) {
     add(errors, label, "docVersion must be an integer for data-plane conformance");
   }
 
+  // A merged `site` doc is post-merge: tombstones must already be applied, so `removed:true`
+  // anywhere in a site doc is a contradiction. (Fragments/overlays may carry tombstones.)
+  if (doc.scope === "site") {
+    const flagTombstones = (items, what) => {
+      for (const it of Array.isArray(items) ? items : []) {
+        if (it && it.removed === true) add(errors, label, `${what} "${String(it.id ?? it.capability ?? it.type ?? "")}" carries a tombstone (removed) in a merged site doc`);
+      }
+    };
+    for (const node of Array.isArray(doc.nodes) ? doc.nodes : []) {
+      if (!node || typeof node !== "object") continue;
+      if (node.removed === true) add(errors, label, `node "${String(node.id ?? "")}" carries a tombstone (removed) in a merged site doc`);
+      flagTombstones(node.accessPaths, "access path");
+      flagTombstones(node.capabilities, "capability");
+    }
+    flagTombstones(doc.relationships, "relationship");
+  }
+
   // Device-type descriptors first (nodes reference them by key). Validate key
   // uniqueness and the descriptor's capability templates. A template has no access
   // paths/attributes of its own, so only the structure-independent invariant — no

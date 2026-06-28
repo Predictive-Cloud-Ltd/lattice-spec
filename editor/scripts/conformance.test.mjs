@@ -17,6 +17,10 @@ ajvT.addSchema(schema);
 const validateTransform = ajvT.compile({ $ref: schema.$id + "#/$defs/transform" });
 const validateOffer = ajvT.compile({ $ref: schema.$id + "#/$defs/capabilityOffer" });
 const validateBinding = ajvT.compile({ $ref: schema.$id + "#/$defs/binding" });
+const validateNode = ajvT.compile({ $ref: schema.$id + "#/$defs/node" });
+const validateAccessPath = ajvT.compile({ $ref: schema.$id + "#/$defs/accessPath" });
+const validateRelationship = ajvT.compile({ $ref: schema.$id + "#/$defs/relationship" });
+const validateProducer = ajvT.compile({ $ref: schema.$id + "#/$defs/producer" });
 
 // Minimal schema-valid building blocks the checker can reason about.
 const baseNode = { id: "N1", kind: "inverter" };
@@ -578,4 +582,65 @@ test("ref-resolution and x-* reporting recurse through a control binding's pipel
   assert.ok(has(errors, 'transform ref "missing_param" has no matching node parameter'));
   const notes = collectExtensionTransformKinds(doc);
   assert.ok(notes.some((n) => n.includes("x-acme:weird")));
+});
+
+test("producer.authority is an optional integer", () => {
+  assert.ok(validateProducer({ name: "p", provider: "x", authority: 50 }));
+  assert.ok(validateProducer({ name: "p", provider: "x" }));
+  assert.ok(!validateProducer({ name: "p", provider: "x", authority: "hi" }));
+});
+
+test("node tombstone needs only id; a normal node still needs kind", () => {
+  assert.ok(validateNode({ id: "N1", removed: true }));
+  assert.ok(validateNode({ id: "N1", kind: "inverter" }));
+  assert.ok(!validateNode({ id: "N1" }), "non-removed node without kind must fail");
+  assert.ok(!validateNode({ id: "N1", removed: false }), "removed:false is not a tombstone — kind still required");
+});
+
+test("accessPath tombstone needs only id; a normal access path still needs provider", () => {
+  assert.ok(validateAccessPath({ id: "ap", removed: true }));
+  assert.ok(validateAccessPath({ id: "ap", provider: "gw" }));
+  assert.ok(!validateAccessPath({ id: "ap" }), "non-removed access path without provider must fail");
+  assert.ok(!validateAccessPath({ id: "ap", removed: false }), "removed:false is not a tombstone — provider still required");
+});
+
+test("offer tombstone needs only capability; a normal offer still needs read/control/derived", () => {
+  assert.ok(validateOffer({ capability: "battery.soc", removed: true }));
+  assert.ok(validateOffer({ capability: "battery.soc", read: { protocol: "modbus", address: 1 } }));
+  assert.ok(!validateOffer({ capability: "battery.soc" }), "non-removed offer without a binding must fail");
+  assert.ok(!validateOffer({ capability: "battery.soc", removed: false }), "removed:false is not a tombstone — a binding still required");
+});
+
+test("relationship may carry removed and still needs from/to/type", () => {
+  assert.ok(validateRelationship({ from: "A", to: "B", type: "contains", removed: true }));
+  assert.ok(!validateRelationship({ from: "A", to: "B", removed: true }), "tombstone still needs type");
+});
+
+test("a merged site doc must not carry tombstones", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", removed: true }] }),
+  );
+  assert.ok(has(errors, "tombstone"), `expected a tombstone error, got: ${errors.join("; ")}`);
+});
+
+test("a fragment may carry tombstones (no error)", () => {
+  const errors = checkSemanticInvariants(
+    fragment({ nodes: [{ id: "N1", removed: true }] }),
+  );
+  assert.ok(!has(errors, "tombstone"), `unexpected tombstone error: ${errors.join("; ")}`);
+});
+
+test("a merged site doc must not carry tombstones in accessPaths, capabilities, or relationships", () => {
+  assert.ok(
+    has(checkSemanticInvariants(site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap1", removed: true }] }] })), "tombstone"),
+    "accessPath tombstone should error",
+  );
+  assert.ok(
+    has(checkSemanticInvariants(site({ nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "battery.soc", removed: true }] }] })), "tombstone"),
+    "capability tombstone should error",
+  );
+  assert.ok(
+    has(checkSemanticInvariants(site({ relationships: [{ from: "A", to: "B", type: "contains", removed: true }] })), "tombstone"),
+    "relationship tombstone should error",
+  );
 });

@@ -102,6 +102,15 @@ How participants advertise/discover one another, what carries the shared model o
 5. **Auto-vs-declared balance** — how far inference goes before declaration is required.
 6. **Who declares** — installer at onboarding, an admin/curation UI, or a cloud rules layer.
 
+> **Resolved 2026-06-28 (#2, #4):** convergence, authority, and source reconciliation are now
+> normative — see `2026-06-28-export-overlay-merge.md`. Sources carry an explicit
+> `producer.authority` rank; a pure identity-keyed `merge` composes fragments + overlays
+> (higher authority wins, `docVersion` recency breaks ties), with removal tombstones and
+> deterministic output. Manual/upstream declarations survive rediscovery because the durable
+> inputs (a fresh discovery fragment + stored overlays) are re-merged each cycle (§2.3). The
+> remaining parts of #2/#3 (wire transport for distribution, who physically hosts the
+> authoritative copy) stay open.
+
 ---
 
 ## 8. Success criteria (build & distribution)

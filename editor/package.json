@@ -10,13 +10,16 @@
     "prebuild": "node scripts/copy-artifacts.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run test:conformance && npm run test:unit && npm run test:resolve",
+    "test": "npm run test:conformance && npm run test:unit && npm run test:resolve && npm run test:merge",
     "test:conformance": "node scripts/conformance.mjs",
     "test:unit": "node --test scripts/conformance.test.mjs",
-    "build:ref": "tsc src/resolve-engine.ts --outDir scripts/.gen --module esnext --target es2020 --moduleResolution bundler --skipLibCheck",
+    "build:ref": "tsc src/resolve-engine.ts src/merge-engine.ts --outDir scripts/.gen --module esnext --target es2020 --moduleResolution bundler --skipLibCheck",
     "pretest:resolve": "npm run build:ref",
     "test:resolve": "node --test scripts/resolve-conformance.test.mjs",
-    "resolve:record": "npm run build:ref && node scripts/resolve-record.mjs"
+    "resolve:record": "npm run build:ref && node scripts/resolve-record.mjs",
+    "pretest:merge": "npm run build:ref",
+    "test:merge": "node --test scripts/merge-engine.test.mjs scripts/merge-conformance.test.mjs",
+    "merge:record": "npm run build:ref && node scripts/merge-record.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
