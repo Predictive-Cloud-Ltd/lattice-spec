@@ -629,3 +629,18 @@ test("a fragment may carry tombstones (no error)", () => {
   );
   assert.ok(!has(errors, "tombstone"), `unexpected tombstone error: ${errors.join("; ")}`);
 });
+
+test("a merged site doc must not carry tombstones in accessPaths, capabilities, or relationships", () => {
+  assert.ok(
+    has(checkSemanticInvariants(site({ nodes: [{ id: "N1", kind: "inverter", accessPaths: [{ id: "ap1", removed: true }] }] })), "tombstone"),
+    "accessPath tombstone should error",
+  );
+  assert.ok(
+    has(checkSemanticInvariants(site({ nodes: [{ id: "N1", kind: "inverter", capabilities: [{ capability: "battery.soc", removed: true }] }] })), "tombstone"),
+    "capability tombstone should error",
+  );
+  assert.ok(
+    has(checkSemanticInvariants(site({ relationships: [{ from: "A", to: "B", type: "contains", removed: true }] })), "tombstone"),
+    "relationship tombstone should error",
+  );
+});
