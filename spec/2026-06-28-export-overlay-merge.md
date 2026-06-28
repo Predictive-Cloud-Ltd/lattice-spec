@@ -47,6 +47,8 @@ Structural relationships (e.g. a gateway `contains` its inverters) SHOULD be inc
 
 `topologyVersion` MUST be set. `docVersion` MUST be **monotonic per export** — it increases on every change. A producer MUST NOT reuse a `docVersion` for different content.
 
+A producer's `docVersion` is a monotonic counter (implementation-defined); the content-digest `docVersion` described in §4.2 is a property of the *merged* output only, not of producer fragments.
+
 ### 2.7 Minimal assertion principle
 
 A producer SHOULD describe only its own slice and SHOULD NOT assert fields it did not determine. This keeps the discovery fragment a faithful, low-authority view that overlays refine.
@@ -184,7 +186,7 @@ Data-plane refs (`cap_ref`) are **minted by the merger** on the `site` output:
 An overlay is a **`scope:"fragment"`** document with higher `producer.authority` and, optionally, tombstones. There is **no new `scope` value**. Specifically:
 
 - `removed: true` is meaningful only in a `fragment` or overlay.
-- A `site` document carries no tombstones: conformance warns (not errors) if `removed` appears under `scope:"site"` — tombstones are already applied by the time a site doc is produced.
+- A `site` document carries no tombstones: it is a semantic **error** (reported by `checkSemanticInvariants`) if `removed` appears anywhere under `scope:"site"` — on a node, access path, capability offer, or relationship — because tombstones are already applied by the time a site doc is produced. (This is a conformance check on a document, distinct from the single hard error `merge` itself throws — see §6.)
 - An overlay may be sparse: it need only carry the fields and elements it asserts. Fields not mentioned are unaffected.
 
 The gateway's runtime loop does not distinguish "overlay" from "discovery fragment" structurally — both are fragments. The difference is entirely in `producer.authority`: low for on-device discovery, higher for installer and cloud overlays.
@@ -244,6 +246,8 @@ Plus unit cases: schema gating for tombstone forms; a bare-`capability` tombston
 ### 7.3 Downstream adopters
 
 batpred and the gateway MUST adopt the identical `conformance/merge/` corpus — using the same `cases.json` and `expected.json` golden — to be considered conformant. Divergence on any golden output (site or warnings) constitutes a non-conformance.
+
+Adoption by batpred and the gateway is a downstream requirement; as of this writing only the editor reference implementation is confirmed conformant.
 
 ---
 
