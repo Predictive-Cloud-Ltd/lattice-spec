@@ -121,3 +121,12 @@ test("incompatible topologyVersion majors throw", () => {
   const b = frag({ topologyVersion: "1.0.0", nodes: [{ id: "N", kind: "inverter" }] });
   assert.throws(() => merge([a, b]), /incompatible topologyVersion majors/);
 });
+
+test("empty input yields an empty site with the synthetic producer", () => {
+  const { site, warnings } = merge([]);
+  assert.equal(site.scope, "site");
+  assert.deepEqual(site.nodes, []);
+  assert.equal(site.producer.provider, "lattice-merge");
+  assert.deepEqual(site.producer.inputs, []);
+  assert.deepEqual(warnings, []);
+});

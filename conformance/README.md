@@ -146,9 +146,11 @@ is a bug or a deliberate change — in the latter case update across all runners
 
 ## Regenerating the golden
 
-`npm run resolve:record` rewrites `expected.json` from the TypeScript reference. Run it only
+`npm run resolve:record` rewrites `resolve/expected.json` from the TypeScript reference. Run it only
 after an **intentional** behaviour change, then review the diff — an unexpected line in that
 diff is a regression caught early.
+
+Likewise, `npm run merge:record` regenerates `merge/expected.json` from the reference merge engine.
 
 ## Scope (today)
 

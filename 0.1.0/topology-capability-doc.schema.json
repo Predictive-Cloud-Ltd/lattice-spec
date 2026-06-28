@@ -130,7 +130,7 @@
           "enum": [1, 2],
           "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
         },
-        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this offer (keyed by capability+accessPath) is removed; only `capability` is required." }
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this offer (keyed by capability+accessPath) is removed; only `capability` is required (a bare-capability tombstone with no `accessPath` targets the access-path-less derived offer)." }
       }
     },
     "groupSlot": {

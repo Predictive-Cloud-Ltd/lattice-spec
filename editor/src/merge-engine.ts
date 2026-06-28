@@ -137,7 +137,7 @@ export function merge(docs: Doc[]): MergeResult {
   const warnings: string[] = [];
   const inputs = (Array.isArray(docs) ? docs : []).filter((d) => d && typeof d === "object");
   if (inputs.length === 0) {
-    return { site: { topologyVersion: "0.1.0", scope: "site", producer: { name: "merge", provider: "merge" }, nodes: [] }, warnings };
+    return { site: { topologyVersion: "0.1.0", scope: "site", producer: { name: "lattice-merge", provider: "lattice-merge", inputs: [] }, nodes: [] }, warnings };
   }
 
   const majors = new Set(inputs.map((d) => majorOf(d.topologyVersion)));
