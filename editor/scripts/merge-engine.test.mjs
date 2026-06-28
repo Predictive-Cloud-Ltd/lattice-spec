@@ -128,13 +128,25 @@ test("empty input raises (no valid zero-node site)", () => {
 });
 
 test("deviceTypes are carried into the merged site so node deviceType resolves", () => {
-  const frag = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
+  const fragDoc = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
     deviceTypes: [{ key: "ge-aio", capabilities: [{ capability: "battery.soc", read: { protocol: "modbus", address: 60 } }] }],
     nodes: [{ id: "INV", kind: "inverter", deviceType: "ge-aio" }] };
-  const { site } = merge([frag]);
+  const { site } = merge([fragDoc]);
   assert.deepEqual(site.deviceTypes.map((d) => d.key), ["ge-aio"]);
   const errors = checkSemanticInvariants(site);
   assert.ok(!errors.some((e) => e.includes("references unknown deviceType")), `unexpected: ${errors.join("; ")}`);
+});
+
+test("deviceTypes union dedups by key across fragments (higher authority wins)", () => {
+  const a = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
+    deviceTypes: [{ key: "ge-aio", capabilities: [{ capability: "battery.soc", read: {} }] }],
+    nodes: [{ id: "INV", kind: "inverter", deviceType: "ge-aio" }] };
+  const b = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "i", provider: "installer", authority: 50 }, docVersion: 1,
+    deviceTypes: [{ key: "ge-aio", capabilities: [{ capability: "battery.power", read: {} }] }],
+    nodes: [{ id: "INV", kind: "inverter", deviceType: "ge-aio" }] };
+  const { site } = merge([a, b]);
+  assert.equal(site.deviceTypes.length, 1);
+  assert.deepEqual(site.deviceTypes[0].capabilities.map((c) => c.capability), ["battery.power"]);
 });
 
 test("site.id survives from a low-authority input when the top input omits id", () => {
@@ -143,4 +155,11 @@ test("site.id survives from a low-authority input when the top input omits id", 
   const { site } = merge([disc, over]);
   assert.equal(site.id, "site:home");
   assert.equal(site.nodes[0].kind, "gateway");
+});
+
+test("site.id: higher-authority input wins when both inputs set id", () => {
+  const low = { topologyVersion: "0.1.0", scope: "fragment", id: "site:discovered", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1, nodes: [{ id: "N", kind: "inverter" }] };
+  const high = { topologyVersion: "0.1.0", scope: "fragment", id: "site:authoritative", producer: { name: "i", provider: "installer", authority: 50 }, docVersion: 1, nodes: [{ id: "N", kind: "inverter" }] };
+  assert.equal(merge([low, high]).site.id, "site:authoritative");
+  assert.equal(merge([high, low]).site.id, "site:authoritative");
 });
