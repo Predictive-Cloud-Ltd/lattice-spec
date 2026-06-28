@@ -70,8 +70,7 @@
             }
           ]
         }
-      ],
-      "docVersion": 992366092
+      ]
     },
     "warnings": []
   },
@@ -105,8 +104,7 @@
             "ratedW": 5000
           }
         }
-      ],
-      "docVersion": 2135825820
+      ]
     },
     "warnings": []
   },
@@ -159,8 +157,7 @@
             }
           ]
         }
-      ],
-      "docVersion": 1041179685
+      ]
     },
     "warnings": []
   },
@@ -202,8 +199,7 @@
           "to": "INV",
           "type": "contains"
         }
-      ],
-      "docVersion": 897037686
+      ]
     },
     "warnings": []
   },
@@ -234,8 +230,7 @@
           "id": "GW",
           "kind": "gateway"
         }
-      ],
-      "docVersion": 1566601559
+      ]
     },
     "warnings": [
       "relationship GW|PHANTOM|contains dropped: endpoint not in merged node set"
@@ -286,8 +281,7 @@
             }
           ]
         }
-      ],
-      "docVersion": 1884844422
+      ]
     },
     "warnings": []
   },
@@ -318,8 +312,7 @@
           "id": "N",
           "kind": "gateway"
         }
-      ],
-      "docVersion": 1699939082
+      ]
     },
     "warnings": []
   },
@@ -350,8 +343,7 @@
           "id": "N",
           "kind": "inverter"
         }
-      ],
-      "docVersion": 766577671
+      ]
     },
     "warnings": [
       "node \"N\" field \"kind\": conflicting values at equal precedence; kept first"
@@ -387,8 +379,7 @@
             "ratedW": 6000
           }
         }
-      ],
-      "docVersion": 1391594930
+      ]
     },
     "warnings": []
   },
@@ -419,8 +410,79 @@
           "id": "N",
           "kind": "inverter"
         }
+      ]
+    },
+    "warnings": []
+  },
+  "deviceTypes: descriptor carried into the site so node deviceType resolves": {
+    "site": {
+      "topologyVersion": "0.1.0",
+      "scope": "site",
+      "producer": {
+        "name": "lattice-merge",
+        "provider": "lattice-merge",
+        "inputs": [
+          {
+            "name": "gw",
+            "provider": "gw",
+            "authority": 0,
+            "docVersion": 1
+          }
+        ]
+      },
+      "nodes": [
+        {
+          "id": "INV",
+          "kind": "inverter",
+          "deviceType": "ge-aio"
+        }
       ],
-      "docVersion": 1337414460
+      "deviceTypes": [
+        {
+          "key": "ge-aio",
+          "capabilities": [
+            {
+              "capability": "battery.soc",
+              "read": {
+                "protocol": "modbus",
+                "address": 60
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  },
+  "site.id: survives from low-authority discovery when a high-authority overlay omits id": {
+    "site": {
+      "topologyVersion": "0.1.0",
+      "scope": "site",
+      "producer": {
+        "name": "lattice-merge",
+        "provider": "lattice-merge",
+        "inputs": [
+          {
+            "name": "gw",
+            "provider": "gw",
+            "authority": 0,
+            "docVersion": 1
+          },
+          {
+            "name": "installer",
+            "provider": "installer",
+            "authority": 50,
+            "docVersion": 1
+          }
+        ]
+      },
+      "nodes": [
+        {
+          "id": "INV",
+          "kind": "gateway"
+        }
+      ],
+      "id": "site:home"
     },
     "warnings": []
   }

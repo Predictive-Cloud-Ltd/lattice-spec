@@ -97,5 +97,22 @@
       { "topologyVersion": "0.1.0", "scope": "fragment", "producer": { "name": "installer", "provider": "installer", "authority": 50 }, "docVersion": 1,
         "nodes": [{ "id": "GHOST", "removed": true }] }
     ]
+  },
+  {
+    "name": "deviceTypes: descriptor carried into the site so node deviceType resolves",
+    "inputs": [
+      { "topologyVersion": "0.1.0", "scope": "fragment", "producer": { "name": "gw", "provider": "gw", "authority": 0 }, "docVersion": 1,
+        "deviceTypes": [{ "key": "ge-aio", "capabilities": [{ "capability": "battery.soc", "read": { "protocol": "modbus", "address": 60 } }] }],
+        "nodes": [{ "id": "INV", "kind": "inverter", "deviceType": "ge-aio" }] }
+    ]
+  },
+  {
+    "name": "site.id: survives from low-authority discovery when a high-authority overlay omits id",
+    "inputs": [
+      { "topologyVersion": "0.1.0", "scope": "fragment", "id": "site:home", "producer": { "name": "gw", "provider": "gw", "authority": 0 }, "docVersion": 1,
+        "nodes": [{ "id": "INV", "kind": "inverter" }] },
+      { "topologyVersion": "0.1.0", "scope": "fragment", "producer": { "name": "installer", "provider": "installer", "authority": 50 }, "docVersion": 1,
+        "nodes": [{ "id": "INV", "kind": "gateway" }] }
+    ]
   }
 ]

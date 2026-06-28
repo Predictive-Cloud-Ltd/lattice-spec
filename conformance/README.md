@@ -131,6 +131,8 @@ Per case, the JSON-normalised `{ site, warnings }`:
 - `site` — the merged `scope:"site"` document (nodes, relationships, minted `ref`s, top-level identity from the highest-authority input).
 - `warnings` — non-fatal notes (equal-precedence scalar conflicts, dropped dangling relationships).
 
+> **`docVersion` is normalized out of the cross-language comparison.** The merged `site.docVersion` is a content digest; its exact value is implementation-defined (each language mints its own deterministic, content-derived value). The corpus golden and every runner therefore delete `site.docVersion` before comparing. The "`docVersion` is a positive integer that changes with content" property is pinned by an **in-language** unit test, not by this corpus. (`producer.inputs[].docVersion`, which echoes each input's version, IS pinned.)
+
 ### Running / adopting
 
 ```bash
