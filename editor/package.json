@@ -18,7 +18,8 @@
     "test:resolve": "node --test scripts/resolve-conformance.test.mjs",
     "resolve:record": "npm run build:ref && node scripts/resolve-record.mjs",
     "pretest:merge": "npm run build:ref",
-    "test:merge": "node --test scripts/merge-engine.test.mjs"
+    "test:merge": "node --test scripts/merge-engine.test.mjs scripts/merge-conformance.test.mjs",
+    "merge:record": "npm run build:ref && node scripts/merge-record.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
