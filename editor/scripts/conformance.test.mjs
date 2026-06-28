@@ -615,3 +615,17 @@ test("relationship may carry removed and still needs from/to/type", () => {
   assert.ok(validateRelationship({ from: "A", to: "B", type: "contains", removed: true }));
   assert.ok(!validateRelationship({ from: "A", to: "B", removed: true }), "tombstone still needs type");
 });
+
+test("a merged site doc must not carry tombstones", () => {
+  const errors = checkSemanticInvariants(
+    site({ nodes: [{ id: "N1", kind: "inverter", removed: true }] }),
+  );
+  assert.ok(has(errors, "tombstone"), `expected a tombstone error, got: ${errors.join("; ")}`);
+});
+
+test("a fragment may carry tombstones (no error)", () => {
+  const errors = checkSemanticInvariants(
+    fragment({ nodes: [{ id: "N1", removed: true }] }),
+  );
+  assert.ok(!has(errors, "tombstone"), `unexpected tombstone error: ${errors.join("; ")}`);
+});
