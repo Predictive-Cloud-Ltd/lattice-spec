@@ -24,6 +24,11 @@ Just as a web API ships an `openapi.json` and any client talks to it without bes
 - **Meta-schema** (JSON Schema 2020-12): [`0.1.0/topology-capability-doc.schema.json`](0.1.0/topology-capability-doc.schema.json) — canonical `$id`: `https://lattice-spec.org/0.1.0/topology-capability-doc.schema.json`
 - **Data plane** (protobuf): [`0.1.0/topology-data-plane.proto`](0.1.0/topology-data-plane.proto)
 - **Worked example** (vendor-neutral; validates against the schema): [`0.1.0/examples/example-site.topology.json`](0.1.0/examples/example-site.topology.json)
+- **Conformance corpora** (language-neutral golden tests): [`conformance/merge/`](conformance/merge/) and [`conformance/resolve/`](conformance/resolve/)
+
+## Implementing
+
+New to Lattice or porting it to another language/runtime? See **[`IMPLEMENTING.md`](IMPLEMENTING.md)** — the adopter's guide: the core model, a minimum implementation profile, the merge/controller rules, and a self-certification checklist backed by the conformance corpora.
 
 ## Specification (drafts)
 
