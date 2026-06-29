@@ -1,0 +1,92 @@
+{
+  "identity to_eng": {
+    "value": 7
+  },
+  "identity from_eng": {
+    "value": 7
+  },
+  "negate to_eng": {
+    "value": -5
+  },
+  "negate from_eng": {
+    "value": -5
+  },
+  "affine to_eng (raw*2+3)": {
+    "value": 23
+  },
+  "affine from_eng ((eng-3)/2)": {
+    "value": 10
+  },
+  "ratio to_eng trunc": {
+    "value": 3
+  },
+  "ratio from_eng (eng*den/num)": {
+    "value": 30
+  },
+  "ratio from_eng half_up (5/2)": {
+    "value": 3
+  },
+  "ratio from_eng half_even (5/2)": {
+    "value": 2
+  },
+  "ratio from_eng half_even (7/2)": {
+    "value": 4
+  },
+  "clamp to_eng above max": {
+    "value": 50
+  },
+  "clamp to_eng below min": {
+    "value": 0
+  },
+  "clamp to_eng in range": {
+    "value": 30
+  },
+  "hhmm passthrough to_eng": {
+    "value": 1330
+  },
+  "pipeline to_eng (affine then clamp)": {
+    "value": 100
+  },
+  "pipeline from_eng (reverse + invert)": {
+    "value": 10
+  },
+  "ref ratio to_eng (capacity/100)": {
+    "value": 6657
+  },
+  "ref factor to_eng (capacity*0.5 / 50)": {
+    "value": 6657
+  },
+  "ref unavailable to_eng -> null": {
+    "value": null
+  },
+  "ref unavailable from_eng -> null (fail-closed)": {
+    "value": null
+  },
+  "ref unavailable from_eng onRefUnavailable max": {
+    "value": 50
+  },
+  "GE capacity read (ratio 317/1)": {
+    "value": 13314
+  },
+  "GE rate cap read (pipeline clamp+ratio)": {
+    "value": 6657
+  },
+  "GE rate cap read with input clamp (60->50)": {
+    "value": 6657
+  },
+  "GE rate cap write (3000W -> 23)": {
+    "value": 23
+  },
+  "GE rate cap write unavailable -> fail-open 50": {
+    "value": 50
+  },
+  "GE_RATE_FULL write (rated_power ref)": {
+    "value": 50
+  },
+  "ratio from_eng half_up negative (-5/2)": {
+    "value": -3
+  },
+  "ratio from_eng half_even negative (-5/2)": {
+    "value": -2
+  }
+}

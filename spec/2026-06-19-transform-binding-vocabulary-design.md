@@ -43,6 +43,15 @@ A small, fixed set of generic kinds. `0.2.0/` declares these normatively (name +
 | `hhmm` | — | passthrough HHMM time-of-day | |
 | `pipeline` | `steps: [transform]` | left-to-right composition | for the rare 2-step case (e.g. `affine` then `clamp`) |
 
+**Evaluation semantics (normative, pinned by `conformance/transform/`).** Each kind is evaluated in
+two directions: `toEng(raw)` (read) per the table above, and `fromEng(eng)` (write) as the algebraic
+inverse — `affine` ↔ `(eng−offset)/scale`, `ratio` ↔ `eng·den/num`, `negate`/`identity`/`hhmm`
+self-inverse, `clamp` idempotent, `pipeline` reverse-order-and-invert. Division is sign-aware with
+the transform's `round` mode (a transform carries one `round`, applied to both directions). A `ref`
+that cannot resolve yields no value (`null`) on read; on write it yields `null` (fail-closed)
+unless `onRefUnavailable: "max"` (emit the transform's `max`, fail-open). The `conformance/transform/`
+corpus is the cross-language contract; the editor `transform-engine.ts` is the reference.
+
 Encodings (`u16`, `i16`, `u32_hl`, `u16_vec`, …) stay a separate `binding.encoding` concern — decode-then-transform. No vendor encodings.
 
 **Rounding.** The dividing kinds (`ratio`, `affine`) take an optional `round` mode — `trunc` (default: integer division toward zero, the existing behaviour), `half_up` (round half away from zero), or `half_even` (banker's). This is the piece that lets device registers which **round half-up** be expressed generically rather than as vendor kinds: GivEnergy's rate-cap registers round half-up because the firmware treats only the *exact* maximum as "unrestricted", so a truncated near-max value snaps back to the true rate. `round: half_up` reproduces that exactly. (Added in PR-T2.)
