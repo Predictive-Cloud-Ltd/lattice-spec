@@ -116,6 +116,10 @@ Overridden **wholesale** by the highest-precedence setter. `aggregate` is one co
 
 Identity-keyed **union** across all contributors. On key collision the highest-precedence entry wins **wholesale** — a binding is cohesive and is never field-merged across sources. First-seen key order is preserved. After merging, access paths are sorted by `preference` descending, then `id` ascending.
 
+#### Top-level collection: `deviceTypes`
+
+Identity-keyed **union** across all inputs, keyed by `key`. On collision the highest-precedence entry wins wholesale. The merged site carries the full union of device-type descriptors so that node `deviceType` references resolve against the merged document.
+
 ### 3.4 Tombstones (`removed: true`)
 
 An element with `removed: true` in a fragment/overlay is a tombstone. Tombstone semantics:
@@ -162,6 +166,8 @@ The `inputs` sidecar records each contributing source for provenance and audit. 
 
 The merged document's `docVersion` is **reminted** as a deterministic content digest — a stable 31-bit FNV-1a hash of the merged site with `docVersion` excluded — and is **never inherited** from any input. The digest changes whenever any merged content changes.
 
+The cross-language corpus (`conformance/merge/`) normalizes `site.docVersion` out before comparing: each language mints its own deterministic value, making the exact integer implementation-defined. The "`docVersion` is a positive integer that changes with content" property is pinned by an **in-language** unit test, not the cross-language corpus. (`producer.inputs[].docVersion` echoes each input's version and IS pinned in the corpus.)
+
 ### 4.3 Site identity (`id`)
 
 The merged document's `id` is taken from the highest-authority input that sets it. It is the **site's own identity** (the subject the document describes, e.g. a home), not provenance, and is legitimately named by the authoritative source. If no input sets `id`, the merged document omits it.
@@ -195,10 +201,11 @@ The gateway's runtime loop does not distinguish "overlay" from "discovery fragme
 
 ## 6. Output validity, errors, and warnings
 
-`merge` is **total** — it always returns `{ site, warnings }` — with exactly **one hard error**:
+`merge` is **total** — it always returns `{ site, warnings }` — with exactly **two hard errors**:
 
 | Condition | Behaviour |
 |-----------|-----------|
+| Empty input list (`merge([])`) | **Throw** — there is nothing to merge |
 | `topologyVersion` major differs across inputs | **Throw** — incompatible versions cannot be merged |
 
 Everything else resolves; where resolution is ambiguous or lossy, a warning is appended to `warnings`:
@@ -224,7 +231,7 @@ Warnings are not a private side channel — they are **pinned in the merge corpu
 
 ### 7.1 The corpus is the cross-language contract
 
-The `conformance/merge/` corpus (`cases.json` + `expected.json`) is the normative cross-language contract for `merge`. The ten cases cover:
+The `conformance/merge/` corpus (`cases.json` + `expected.json`) is the normative cross-language contract for `merge`. The twelve cases cover:
 
 1. **union** — same node via two peer providers → one node, both access paths ranked, capabilities unioned.
 2. **override** — low-authority `kind=inverter` vs higher-authority `kind=gateway` → `gateway`, other fields intact (per-field precedence).
@@ -236,6 +243,8 @@ The `conformance/merge/` corpus (`cases.json` + `expected.json`) is the normativ
 8. **tie-warns** — equal authority and `docVersion`, conflicting `kind` → first-in-order wins and a warning is pinned.
 9. **survival** — `merge([D, U])` and `merge([D′, U])` (fresh, higher-`docVersion` discovery) both keep U's override, satisfying the discovery-composition §2.3 requirement.
 10. **tombstone-noop** — tombstoning an absent element changes nothing and emits no warnings.
+11. **deviceTypes** — device-type descriptor carried into the merged site so node `deviceType` references resolve.
+12. **site.id survival** — `site.id` set by a low-authority input survives when the higher-authority overlay omits `id` (highest-authority setter wins; here only one input sets it).
 
 Plus unit cases: schema gating for tombstone forms; a bare-`capability` tombstone removes only the derived (access-path-less) offer, not access-path offers; synthetic `producer` + digest `docVersion`; incompatible-major throw.
 

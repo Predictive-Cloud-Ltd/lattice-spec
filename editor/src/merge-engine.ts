@@ -137,7 +137,7 @@ export function merge(docs: Doc[]): MergeResult {
   const warnings: string[] = [];
   const inputs = (Array.isArray(docs) ? docs : []).filter((d) => d && typeof d === "object");
   if (inputs.length === 0) {
-    return { site: { topologyVersion: "0.1.0", scope: "site", producer: { name: "lattice-merge", provider: "lattice-merge", inputs: [] }, nodes: [] }, warnings };
+    throw new Error("cannot merge an empty document list");
   }
 
   const majors = new Set(inputs.map((d) => majorOf(d.topologyVersion)));
@@ -228,7 +228,12 @@ export function merge(docs: Doc[]): MergeResult {
     },
     nodes: mergedNodes,
   };
-  if (top.item.id != null) site.id = top.item.id;
+  // deviceTypes union by `key`, so a node's deviceType reference resolves in the merged site (Fix A).
+  const deviceTypes = mergeCollection(ranked, "deviceTypes", (dt) => (dt.key != null ? String(dt.key) : null));
+  if (deviceTypes.length) site.deviceTypes = deviceTypes;
+  // site `id` = the site's own identity, from the highest-authority input that SETS it (Fix B).
+  const idContribs = ranked.filter((c) => c.item.id != null);
+  if (idContribs.length) site.id = topBy(idContribs).item.id;
   if (mergedRelationships.length) site.relationships = mergedRelationships;
   site.docVersion = digest(site); // computed last, over the site WITHOUT docVersion
 

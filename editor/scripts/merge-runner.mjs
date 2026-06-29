@@ -19,5 +19,6 @@ export function loadCases() {
 // output is exactly what lands in expected.json (and what other-language runners compare against).
 export function runCase(c) {
   const { site, warnings } = merge(c.inputs);
+  delete site.docVersion; // normalized out: each impl mints its own; not a cross-language pin
   return JSON.parse(JSON.stringify({ site, warnings }));
 }
