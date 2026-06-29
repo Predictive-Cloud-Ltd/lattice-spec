@@ -663,4 +663,5 @@ test("schema pattern rejects a bare capability name and accepts class.function /
   assert.ok(!validateOffer({ capability: "soc", read: { protocol: "modbus", address: 1 } }), "bare 'soc' must fail schema");
   assert.ok(validateOffer({ capability: "battery.soc", read: { protocol: "modbus", address: 1 } }), "class.function passes");
   assert.ok(validateOffer({ capability: "x-acme:foo", read: { protocol: "modbus", address: 1 } }), "x-* passes");
+  assert.ok(!validateOffer({ capability: "x-:foo", read: { protocol: "modbus", address: 1 } }), "x-* with empty namespace must fail");
 });
