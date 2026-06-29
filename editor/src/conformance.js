@@ -4,6 +4,14 @@ function add(errors, label, message) {
   errors.push(label ? `${label}: ${message}` : message);
 }
 
+// Capability identity MUST be `class.function` (qualified by device class) or a namespaced
+// `x-<vendor>:` extension; a bare name reintroduces cross-class ambiguity. Shared by node
+// capabilities and device-type template capabilities.
+function isValidCapabilityName(name) {
+  const s = String(name);
+  return /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(s) || /^x-[^:]+:.+$/.test(s);
+}
+
 // A capability may appear several times on one offerer (one per access path); the
 // same capability + access path twice is a duplicate. Shared by node and
 // device-type-template capability lists.
@@ -73,6 +81,12 @@ export function checkSemanticInvariants(doc, options = {}) {
     }
     deviceTypeKeys.add(deviceType.key);
     checkOfferUniqueness(errors, label, `deviceType "${deviceType.key}"`, deviceType.capabilities);
+    for (const capability of deviceType.capabilities ?? []) {
+      if (!capability?.capability) continue;
+      if (!isValidCapabilityName(capability.capability)) {
+        add(errors, label, `deviceType "${deviceType.key}" capability "${capability.capability}" is not class.function or a namespaced x-* extension`);
+      }
+    }
   }
 
   const nodes = Array.isArray(doc.nodes) ? doc.nodes : [];
@@ -131,7 +145,7 @@ export function checkSemanticInvariants(doc, options = {}) {
       // Capability identity is the merge/resolve key: it MUST be `class.function` (qualified by device
       // class) or a namespaced `x-<vendor>:` extension. A bare name reintroduces the cross-class
       // collision the model exists to prevent (e.g. a battery's W vs an EV's A).
-      if (!/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(capName) && !/^x-[^:]+:.+$/.test(capName)) {
+      if (!isValidCapabilityName(capName)) {
         add(errors, label, `node "${nodeId}" capability "${capName}" is not class.function or a namespaced x-* extension`);
       }
 
