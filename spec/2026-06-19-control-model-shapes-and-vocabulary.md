@@ -136,11 +136,14 @@ resolve_control(intent, target_set):
 
 ## 6. Ownership & arbitration
 
-Because the same devices can be controlled at more than one altitude (the EMS *and* its batteries), the model must guarantee **exactly one controller owns a given device-subtree at a time**. Without this you get dual-control contention — two writers fighting over one inverter, which is a real, observed failure mode (e.g. an external VPP and the planner both writing the same battery).
+Because the same devices can be controlled at more than one altitude (the EMS *and* its batteries), a write must target exactly one altitude — never an EMS *and* its leaves at once. Two writers fighting over one inverter (dual-control contention) is a real, observed failure mode (e.g. an external VPP and the planner both writing the same battery).
 
-- Choosing an altitude **claims** ownership of that subtree; the levels below it are off-limits while the claim holds (you never command an EMS *and* its leaves at once).
-- Ownership is explicit and transferable: an external controller (a VPP dispatch, a manual override) can hold the claim for a window, and the planner defers to it rather than contending.
-- A claim has a holder and a scope (subtree); resolution (§5) must refuse a plan that would write into a subtree owned by someone else, surfacing the conflict instead of racing.
+This spec covers the **resolution-time** half of that and deliberately stops there:
+
+- **Single-altitude selection.** Resolution (§5) picks exactly one altitude for a control plan, so a single consumer never self-contends by commanding an aggregate and the units beneath it. A consumer may override the altitude explicitly, but still gets one.
+- **Ownership is exposed, not enforced.** Resolution reports `ownedNodes` — the device-subtree a plan governs. That is the information an orchestrator needs to detect contention.
+
+**Arbitration between independent controllers is out of scope** — it is a runtime/orchestration concern, not a device-description one (a data contract describes capabilities; it does not hold a cross-writer lock, just as OpenAPI describes an API without managing concurrent callers). When an external controller (a VPP dispatch, a manual override) holds a device for a window, the component that runs both controllers arbitrates — using `ownedNodes` to see which subtree each plan governs and to defer or refuse before they race. Claim-state, claim transfer/expiry, and the refuse-on-conflict decision live in that orchestration layer, which this spec **enables** (via `ownedNodes`) but does not implement.
 
 ---
 
