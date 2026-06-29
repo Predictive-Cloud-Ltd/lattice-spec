@@ -82,5 +82,11 @@
   },
   "GE_RATE_FULL write (rated_power ref)": {
     "value": 50
+  },
+  "ratio from_eng half_up negative (-5/2)": {
+    "value": -3
+  },
+  "ratio from_eng half_even negative (-5/2)": {
+    "value": -2
   }
 }

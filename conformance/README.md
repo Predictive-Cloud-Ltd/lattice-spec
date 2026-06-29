@@ -154,6 +154,8 @@ diff is a regression caught early.
 
 Likewise, `npm run merge:record` regenerates `merge/expected.json` from the reference merge engine.
 
+Likewise, `npm run transform:record` regenerates `transform/expected.json` from the reference transform engine.
+
 ## transform/ — transform-execution conformance
 
 Pins **bidirectional value transforms** (raw↔engineering math). The reference is the editor's
@@ -184,8 +186,7 @@ npm run test:transform    # engine unit tests + corpus deepEqual against expecte
 npm run transform:record  # regenerate expected.json after an intentional behaviour change
 ```
 
-The gateway's `transform.cpp` already evaluates this model — its parity values seed the golden
-(`13314 / 6657 / 23 / 50`), so its adoption is verification. Another language adopts exactly like
+The gateway's `transform.cpp` reproduces these parity values (via its clamp+ratio path), so its adoption is verification. Another language adopts exactly like
 `resolve/` and `merge/`: read `cases.json`, run its `toEng`/`fromEng`, compare to `expected.json`.
 
 ## Scope (today)
