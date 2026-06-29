@@ -154,11 +154,44 @@ diff is a regression caught early.
 
 Likewise, `npm run merge:record` regenerates `merge/expected.json` from the reference merge engine.
 
+## transform/ — transform-execution conformance
+
+Pins **bidirectional value transforms** (raw↔engineering math). The reference is the editor's
+`src/transform-engine.ts` — `toEng(transform, raw, ctx)` and `fromEng(transform, eng, ctx)` →
+`number | null` (see `spec/2026-06-19-transform-binding-vocabulary-design.md`).
+
+### Case format (`transform/cases.json`)
+
+```jsonc
+{ "name": "unique key into expected.json",
+  "transform": { /* a spec transform */ },
+  "direction": "to_eng" | "from_eng",   // raw->eng (read) or eng->raw (write inverse)
+  "input": 3000,                          // the raw (to_eng) or engineering (from_eng) value
+  "ctx": { "capacity": 13314 } }          // optional node parameters for refs; omit a key = unavailable
+```
+
+### Observable result (`transform/expected.json`)
+
+Per case, `{ "value": <number | null> }` — the evaluated value, or `null` for no-value (a ref that
+could not resolve, fail-closed).
+
+### Running / adopting
+
+```bash
+cd editor
+npm run build:ref         # compile resolve/merge/transform engines -> scripts/.gen/
+npm run test:transform    # engine unit tests + corpus deepEqual against expected.json
+npm run transform:record  # regenerate expected.json after an intentional behaviour change
+```
+
+The gateway's `transform.cpp` already evaluates this model — its parity values seed the golden
+(`13314 / 6657 / 23 / 50`), so its adoption is verification. Another language adopts exactly like
+`resolve/` and `merge/`: read `cases.json`, run its `toEng`/`fromEng`, compare to `expected.json`.
+
 ## Scope (today)
 
 `resolve/` covers read routing (single offer, ranked access-path fallback, derived sibling
 reads) and control routing (setpoint clamping against static and runtime-sourced bounds,
-aggregate delegation, divergent-per-access-path selection). It does **not** yet pin transform
-*evaluation* (engineering↔raw value math, rounding, ref resolution) — that lives in the
-gateway's `test_topology_*` parity tests and is the natural next corpus to lift here once a
-second language needs it.
+aggregate delegation, divergent-per-access-path selection). `transform/` pins transform
+*evaluation* (engineering↔raw value math, rounding, ref resolution) — now included in this
+corpus.
