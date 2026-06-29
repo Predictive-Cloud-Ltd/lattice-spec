@@ -124,7 +124,7 @@ function mergeNode(contribs: Contrib[], warnings: string[]): Doc {
   if (parameters) node.parameters = parameters;
 
   const accessPaths = mergeCollection(contribs, "accessPaths", apKey);
-  accessPaths.sort((a, b) => (b.preference ?? 0) - (a.preference ?? 0) || String(a.id).localeCompare(String(b.id)));
+  accessPaths.sort((a, b) => (b.preference ?? 0) - (a.preference ?? 0) || (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0));
   if (accessPaths.length) node.accessPaths = accessPaths;
 
   const capabilities = mergeCollection(contribs, "capabilities", offerKey);
