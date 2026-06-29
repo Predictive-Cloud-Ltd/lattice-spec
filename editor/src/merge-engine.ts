@@ -214,7 +214,7 @@ export function merge(docs: Doc[]): MergeResult {
   // sidecar (inside producer, which is additionalProperties:true). `id` is the site's own identity
   // (the subject), legitimately named by the authoritative input. docVersion is a content digest.
   const site: Doc = {
-    topologyVersion: top.item.topologyVersion ?? "0.1.0",
+    topologyVersion: top.item.topologyVersion ?? "0.2.0",
     scope: "site",
     producer: {
       name: "lattice-merge",
@@ -310,7 +310,7 @@ export function mergeFragments(frags: Frag[]): MergeOutput {
   }
 
   const doc = {
-    topologyVersion: frags.find((f) => f?.topologyVersion)?.topologyVersion ?? "0.1.0",
+    topologyVersion: frags.find((f) => f?.topologyVersion)?.topologyVersion ?? "0.2.0",
     scope: "site",
     id: "site:merged",
     producer: { name: "Merged (consumer)", provider: "merge" },

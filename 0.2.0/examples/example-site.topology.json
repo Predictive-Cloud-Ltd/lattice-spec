@@ -1,6 +1,6 @@
 {
   "$schema": "../topology-capability-doc.schema.json",
-  "topologyVersion": "0.1.0",
+  "topologyVersion": "0.2.0",
   "docVersion": 9,
   "id": "site:example-home",
   "scope": "site",

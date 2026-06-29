@@ -24,7 +24,7 @@ Editorial changes (typos, clarifications, examples) can go straight to a PR.
 
 ## Validating locally
 
-The conformance harness validates every example in `0.1.0/examples/` against the JSON Schema (draft 2020-12), then runs semantic checks the schema cannot express:
+The conformance harness validates every example in `0.2.0/examples/` against the JSON Schema (draft 2020-12), then runs semantic checks the schema cannot express:
 
 ```
 cd editor

@@ -3,7 +3,7 @@ import { mergeFragments } from "./merge-engine";
 import { Graph } from "./Graph";
 
 const FRAG_A = `{
-  "topologyVersion": "0.1.0",
+  "topologyVersion": "0.2.0",
   "scope": "fragment",
   "producer": { "name": "Local gateway", "provider": "local-gateway" },
   "nodes": [
@@ -30,7 +30,7 @@ const FRAG_A = `{
 }`;
 
 const FRAG_B = `{
-  "topologyVersion": "0.1.0",
+  "topologyVersion": "0.2.0",
   "scope": "fragment",
   "producer": { "name": "Vendor cloud", "provider": "example-cloud" },
   "nodes": [
