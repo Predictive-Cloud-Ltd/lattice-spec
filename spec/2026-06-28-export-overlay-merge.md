@@ -114,7 +114,7 @@ Overridden **wholesale** by the highest-precedence setter. `aggregate` is one co
 
 #### Collections: `accessPaths`, `capabilities`, `relationships`
 
-Identity-keyed **union** across all contributors. On key collision the highest-precedence entry wins **wholesale** — a binding is cohesive and is never field-merged across sources. First-seen key order is preserved. After merging, access paths are sorted by `preference` descending, then `id` ascending.
+Identity-keyed **union** across all contributors. On key collision the highest-precedence entry wins **wholesale** — a binding is cohesive and is never field-merged across sources. First-seen key order is preserved. After merging, access paths are sorted by `preference` descending, then `id` ascending (codepoint order — language-neutral, not locale-dependent).
 
 #### Top-level collection: `deviceTypes`
 
@@ -136,7 +136,7 @@ An element with `removed: true` in a fragment/overlay is a tombstone. Tombstone 
 Given a fixed ordered input list, `merge` is deterministic:
 
 - Node order in the output = first-seen across inputs (input order, then within-document order).
-- Access paths sorted by `preference` descending, then `id` ascending (matches batpred behaviour).
+- Access paths sorted by `preference` descending, then `id` ascending (codepoint order — language-neutral, not locale-dependent; matches batpred behaviour).
 - When two setters tie on (authority, docVersion) with conflicting scalar values, the first-in-input-order value is used and a warning is emitted.
 
 ---
