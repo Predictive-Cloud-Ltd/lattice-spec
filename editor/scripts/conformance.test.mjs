@@ -590,6 +590,20 @@ test("producer.authority is an optional integer", () => {
   assert.ok(!validateProducer({ name: "p", provider: "x", authority: "hi" }));
 });
 
+test("a deviceType template capability must be class.function or x-*", () => {
+  const errors = checkSemanticInvariants(
+    fragment({ deviceTypes: [{ key: "dt", capabilities: [{ capability: "soc", read: {} }] }], nodes: [{ id: "N1", kind: "inverter", deviceType: "dt" }] }),
+  );
+  assert.ok(has(errors, "is not class.function"), `expected a capability-name error, got: ${errors.join("; ")}`);
+});
+
+test("a class.function deviceType template capability is accepted", () => {
+  const errors = checkSemanticInvariants(
+    fragment({ deviceTypes: [{ key: "dt", capabilities: [{ capability: "battery.soc", read: {} }] }], nodes: [{ id: "N1", kind: "inverter", deviceType: "dt" }] }),
+  );
+  assert.ok(!has(errors, "is not class.function"), `unexpected capability-name error: ${errors.join("; ")}`);
+});
+
 test("node tombstone needs only id; a normal node still needs kind", () => {
   assert.ok(validateNode({ id: "N1", removed: true }));
   assert.ok(validateNode({ id: "N1", kind: "inverter" }));
