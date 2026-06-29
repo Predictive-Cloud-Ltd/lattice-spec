@@ -658,3 +658,9 @@ test("a merged site doc must not carry tombstones in accessPaths, capabilities, 
     "relationship tombstone should error",
   );
 });
+
+test("schema pattern rejects a bare capability name and accepts class.function / x-*", () => {
+  assert.ok(!validateOffer({ capability: "soc", read: { protocol: "modbus", address: 1 } }), "bare 'soc' must fail schema");
+  assert.ok(validateOffer({ capability: "battery.soc", read: { protocol: "modbus", address: 1 } }), "class.function passes");
+  assert.ok(validateOffer({ capability: "x-acme:foo", read: { protocol: "modbus", address: 1 } }), "x-* passes");
+});

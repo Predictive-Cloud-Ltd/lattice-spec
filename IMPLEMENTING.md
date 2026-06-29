@@ -54,6 +54,8 @@ Device type:                  key
 
 Precedence (highest wins): **`producer.authority`**, then **`docVersion`** (recency), then **earlier input order**. The merge is deterministic given an ordered input list, but **not commutative under ties** — equal authority *and* docVersion with conflicting scalar values keeps the first input and emits a warning.
 
+`producer.authority` orders the merge but is not a trust statement — trust is local policy / authenticated provenance (see the spec's Trust & authority note).
+
 Field resolution: scalar fields (`kind`, `deviceType`) override per-field; bag fields (`attributes`, `parameters`) merge per-key; cohesive objects (`aggregate`) override wholesale; collections (`accessPaths`, `capabilities`, `relationships`, and top-level `deviceTypes` by `key`) are identity-keyed unions.
 
 Tombstones — a higher-authority source removes an element by re-stating it with `removed: true`:
@@ -102,6 +104,8 @@ Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [
 `docVersion` is **implementation-local**: each merged document is produced by one merger that owns its `docVersion`, and consumers use the concrete document they were handed. It is therefore *not* pinned across languages in the merge corpus (the corpus normalizes it out and pins merge *semantics*). Each implementation mints its own deterministic, content-derived `docVersion`; that it is a positive integer which changes with content is an in-language test. (If a future model needs independent mergers to produce *interchangeable* `doc_version`s, that requires canonical digest rules and pinning the exact value — out of scope today.)
 
 ## Conformance
+
+Validate documents against **both** the JSON Schema **and** the semantic conformance checker — the schema now enforces the capability-name shape (`class.function` | `x-*`) via `pattern`, and the semantic checker covers cross-reference and structural invariants the schema can't express.
 
 Two language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
 

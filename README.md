@@ -8,14 +8,14 @@
 
 ## What it is
 
-A vendor-neutral, machine-readable way to describe a site's devices — what's there, how it's wired together, what each can measure or do, and concretely how to read/control it — as a published **document** any consumer ingests with **zero per-vendor code**. The same model is **scale-free**: it describes a single battery cell, a home, a building, or an entire city.
+A vendor-neutral, machine-readable way to describe a site's devices — what's there, how it's wired together, what each can measure or do, and concretely how to read/control it — as a published **document** any consumer ingests with **zero per-vendor controller-planning code** (for conformant L1 reads/controls; per-protocol adapters and tier-2 execution still exist). The same model is **scale-free**: it describes a single battery cell, a home, a building, or an entire city.
 
 Just as a web API ships an `openapi.json` and any client talks to it without bespoke code, a device (or a vendor's cloud) publishes a **Lattice document** and any consumer can read and control it.
 
 ## One model, layered
 
 - **Topology** — a graph of nodes connected by typed, directed relationships (`contains` / `measures` / `controls` / `powers`).
-- **Capabilities** — domain-agnostic read/control affordances (`soc`, `charge_rate`, `temperature`, …). Telemetry and control are the read-face and control-face of one capability.
+- **Capabilities** — domain-agnostic read/control affordances (`battery.soc`, `battery.charge_power_limit`, `thermal.temperature`, …). Telemetry and control are the read-face and control-face of one capability.
 - **Bindings** — the concrete "how" (protocol / address / encoding / scaling), reachable via one or more **ranked access paths** with fallback (local gateway *or* manufacturer cloud).
 - **Data plane** — protobuf telemetry + high-level control intents over MQTT, *typed by* the document (a `cap_ref` codec; aligns with Eclipse Sparkplug B).
 

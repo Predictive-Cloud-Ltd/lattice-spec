@@ -139,6 +139,10 @@ Given a fixed ordered input list, `merge` is deterministic:
 - Access paths sorted by `preference` descending, then `id` ascending (codepoint order — language-neutral, not locale-dependent; matches batpred behaviour).
 - When two setters tie on (authority, docVersion) with conflicting scalar values, the first-in-input-order value is used and a warning is emitted.
 
+### 3.6 Trust & authority
+
+`producer.authority` is a **merge-ordering input, not a trust assertion.** The merge applies it mechanically; it does not establish that a producer is *allowed* to claim that authority. A consumer MUST decide which producers/authorities to trust out-of-band — via local policy and/or authenticated transport (signed/verified fragment provenance) — and SHOULD NOT blindly accept `authority` from an untrusted fragment. Defining an authenticated-provenance mechanism is out of scope for this draft.
+
 ---
 
 ## 4. Merged provenance and versioning
