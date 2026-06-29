@@ -181,6 +181,15 @@ test("#8 an aggregator below its minChildren threshold does not qualify (no fals
   assert.ok(!has(errors, "aggregate"), `unexpected aggregate error: ${errors.join("; ")}`);
 });
 
+test("schema requires kind-specific transform params", () => {
+  assert.ok(!validateTransform({ kind: "ratio" }), "ratio needs num+den");
+  assert.ok(validateTransform({ kind: "ratio", num: 1, den: 2 }), "ratio with num+den ok");
+  assert.ok(!validateTransform({ kind: "pipeline", steps: [] }), "pipeline needs non-empty steps");
+  assert.ok(validateTransform({ kind: "pipeline", steps: [{ kind: "identity" }] }), "pipeline with a step ok");
+  assert.ok(!validateTransform({ kind: "clamp" }), "clamp needs min or max");
+  assert.ok(validateTransform({ kind: "clamp", max: 5 }), "clamp with max ok");
+});
+
 test("transform: a vendor kind like GE_RATE_HALF is rejected", () => {
   assert.equal(validateTransform({ kind: "GE_RATE_HALF" }), false);
 });

@@ -52,6 +52,8 @@ that cannot resolve yields no value (`null`) on read; on write it yields `null` 
 unless `onRefUnavailable: "max"` (emit the transform's `max`, fail-open). The `conformance/transform/`
 corpus is the cross-language contract; the editor `transform-engine.ts` is the reference.
 
+**Authoring convention:** every `binding.transform` is written raw→engineering; a read binding is executed with `toEng`, a control binding with `fromEng` (the inverse). A control binding carries the *same* raw→engineering transform as its read — never a pre-inverted one.
+
 Encodings (`u16`, `i16`, `u32_hl`, `u16_vec`, …) stay a separate `binding.encoding` concern — decode-then-transform. No vendor encodings.
 
 **Rounding.** The dividing kinds (`ratio`, `affine`) take an optional `round` mode — `trunc` (default: integer division toward zero, the existing behaviour), `half_up` (round half away from zero), or `half_even` (banker's). This is the piece that lets device registers which **round half-up** be expressed generically rather than as vendor kinds: GivEnergy's rate-cap registers round half-up because the firmware treats only the *exact* maximum as "unrestricted", so a truncated near-max value snaps back to the true rate. `round: half_up` reproduces that exactly. (Added in PR-T2.)
@@ -94,8 +96,8 @@ When a value is calculated from **more than one** input (`load = pv − battery 
 | `NEGATE_SCALE` (e.g. batt power) | `{ kind: negate }` (= `-raw·num/den`, num=den=1) |
 | `HHMM` | `{ kind: hhmm }` |
 | `GE_CAPACITY` (HR55: ×317 if "CH" else ×51.2) | `{ kind: ratio, num: <per-model literal>, den: <…> }` — the CH-vs-non-CH choice is **two device-type descriptors selected by serial fingerprint** (`GE-AIO` 317/1, `GE-AIO-LV` 512/10); the engine never sees a serial condition |
-| `GE_RATE_FULL` (HR313/314: read raw×rated/100 trunc; write watts→% round-half-up, clamp 100) | read `{ kind: ratio, num: { ref: "rated_power" }, den: 100 }`; write `{ kind: ratio, num: 100, den: { ref: "rated_power" }, round: half_up }` + clamp 100 |
-| `GE_RATE_HALF` (HR111/112: scale by battery half-capacity; round-half-up; clamp 50; **unrestricted (50) when capacity unknown**) | read `pipeline[ clamp(max:50), ratio(num: { ref: "capacity" }, den: 100) ]`; write `{ kind: ratio, num: 100, den: { ref: "capacity" }, round: half_up, onRefUnavailable: max }` + clamp 50 |
+| `GE_RATE_FULL` (HR313/314: read raw×rated/100 trunc; write watts→% round-half-up, clamp 100) | read `{ kind: ratio, num: { ref: "rated_power" }, den: 100 }`; control = the same read transform with `round: half_up, max: 100, onRefUnavailable: max`, executed via `fromEng` |
+| `GE_RATE_HALF` (HR111/112: scale by battery half-capacity; round-half-up; clamp 50; **unrestricted (50) when capacity unknown**) | read `pipeline[ clamp(max:50), ratio(num: { ref: "capacity" }, den: 100, round: half_up, max: 50, onRefUnavailable: max) ]`; control = the same pipeline transform, executed via `fromEng` |
 
 No `GE_` token, no `serial_is_ch`, no bespoke rate helpers survive in the engine. GivEnergy-ness is **entirely** the numbers, the refs, the round mode, the degradation policy, and the per-model descriptor selection — all data. This is the design goal realised: a handler that understands the spec with no per-manufacturer code.
 
