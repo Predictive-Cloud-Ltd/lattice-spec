@@ -31,7 +31,7 @@ An array of objects:
     "side": "control",                            // "read" | "control"
     "intent": 9000,                               // control only: the value the caller wants to set
     "offline": ["gw-local"],                      // optional: access-path ids treated as unreachable
-    "altitude": "auto"                            // optional: "auto" | "node" | "aggregate" (default "auto")
+    "altitude": "auto"                            // optional: "auto" | "aggregate" | "leaves" (default "auto")
   },
   "doc": { /* a complete, schema-valid Lattice document */ }
 }

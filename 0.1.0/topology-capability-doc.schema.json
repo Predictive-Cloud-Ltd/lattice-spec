@@ -230,6 +230,7 @@
     },
     "capabilityName": {
       "type": "string",
+      "pattern": "^([a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*|x-[^:]+:.+)$",
       "description": "Capability identity, qualified by device class as 'class.function' (the merge/resolve key). The class reflects the function's domain, not the node's kind (a gateway may offer 'battery.charge_power_limit' AND 'meter.grid_power'). Qualifying by class prevents collisions a bare name causes — e.g. a battery's charge power (W) vs an EV charger's charge current (A) are 'battery.charge_power_limit' and 'ev_charger.charge_current_limit', never grouped. Vendor/domain extensions namespace further (e.g. 'x-acme:foo'); a capability name MUST NOT name a vendor or device. Core set in examples.",
       "examples": ["battery.soc", "battery.capacity", "battery.charge_power_limit", "battery.discharge_power_limit", "battery.target_soc", "battery.reserve_soc", "battery.mode", "battery.soh", "battery.cycle_count", "battery.cell_voltage", "battery.cell_temperature", "meter.grid_power", "meter.grid_voltage", "pv.power", "ev_charger.power", "ev_charger.charge_current_limit", "ev_charger.state", "thermal.temperature", "thermal.setpoint", "thermal.mode", "thermal.power", "switch.state"]
     },
