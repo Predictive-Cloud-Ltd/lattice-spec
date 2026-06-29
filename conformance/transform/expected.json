@@ -88,5 +88,11 @@
   },
   "ratio from_eng half_even negative (-5/2)": {
     "value": -2
+  },
+  "example GE charge_power_limit control write via fromEng": {
+    "value": 50
+  },
+  "example GE charge_power_limit control write, rated unavailable -> fail-open max": {
+    "value": 100
   }
 }

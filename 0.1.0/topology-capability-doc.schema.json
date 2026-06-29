@@ -285,7 +285,12 @@
         }
       },
       "if": { "properties": { "onRefUnavailable": { "const": "max" } }, "required": ["onRefUnavailable"] },
-      "then": { "required": ["max"] }
+      "then": { "required": ["max"] },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "ratio" } }, "required": ["kind"] }, "then": { "required": ["num", "den"] } },
+        { "if": { "properties": { "kind": { "const": "pipeline" } }, "required": ["kind"] }, "then": { "required": ["steps"], "properties": { "steps": { "minItems": 1 } } } },
+        { "if": { "properties": { "kind": { "const": "clamp" } }, "required": ["kind"] }, "then": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }] } }
+      ]
     },
     "valueOrRef": {
       "description": "A transform parameter: a literal number, or a reference to a declared node parameter with an optional constant factor.",

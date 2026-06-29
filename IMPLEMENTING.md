@@ -107,12 +107,13 @@ Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [
 
 Validate documents against **both** the JSON Schema **and** the semantic conformance checker — the schema now enforces the capability-name shape (`class.function` | `x-*`) via `pattern`, and the semantic checker covers cross-reference and structural invariants the schema can't express.
 
-Two language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
+Three language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
 
 - **[`conformance/merge/`](conformance/merge/)** — `cases.json` (input fragments/overlays) → `expected.json` (the merged `{ site, warnings }`, with the implementation-local `site.docVersion` normalized out). Run your `merge`, delete `site.docVersion`, and compare.
 - **[`conformance/resolve/`](conformance/resolve/)** — read/control resolution: routing, ranked access-path fallback, clamping, aggregate delegation, derived reads.
+- **[`conformance/transform/`](conformance/transform/)** — bidirectional value transforms (raw↔engineering math); `toEng`/`fromEng` per case.
 
-The **reference implementation** is the editor's TypeScript: [`editor/src/merge-engine.ts`](editor/src/merge-engine.ts) and [`editor/src/resolve-engine.ts`](editor/src/resolve-engine.ts), pinned by these corpora via the runners in [`editor/scripts/`](editor/scripts/). A second-language implementation adopts the *same* corpus files — that is what makes "similar implementation" mean "provably identical."
+The **reference implementation** is the editor's TypeScript: [`editor/src/merge-engine.ts`](editor/src/merge-engine.ts), [`editor/src/resolve-engine.ts`](editor/src/resolve-engine.ts), and [`editor/src/transform-engine.ts`](editor/src/transform-engine.ts), pinned by these corpora via the runners in [`editor/scripts/`](editor/scripts/). A second-language implementation adopts the *same* corpus files — that is what makes "similar implementation" mean "provably identical."
 
 ## Acceptance criteria
 
