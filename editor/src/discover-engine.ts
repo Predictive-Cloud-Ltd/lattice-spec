@@ -95,7 +95,7 @@ export function discover(probes: Probe[]): { matches: Match[]; fragment: any } {
     }
   }
   const fragment = {
-    topologyVersion: "0.1.0",
+    topologyVersion: "0.2.0",
     scope: "fragment",
     producer: { name: "Local gateway (discovered)", provider: "local-gateway" },
     nodes,

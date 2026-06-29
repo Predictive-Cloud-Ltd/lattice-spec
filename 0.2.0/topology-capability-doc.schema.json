@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lattice-spec.org/0.1.0/topology-capability-doc.schema.json",
+  "$id": "https://lattice-spec.org/0.2.0/topology-capability-doc.schema.json",
   "title": "Lattice — Topology & Capability Document",
   "description": "An OpenAPI-style, vendor-publishable document describing a site's device topology (a graph of nodes connected by typed directed relationships) and the read/control capabilities each node offers, with concrete data-driven bindings and ranked access paths. A producer (a cloud integration or the gateway) emits a conformant doc; any consumer ingests it generically with no per-provider code. Scale-free: the same constructs describe a cell, a device, a site, or a city.",
   "type": "object",
@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "$schema": { "type": "string" },
-    "topologyVersion": { "type": "string", "description": "Version of THIS specification the doc conforms to (semver).", "examples": ["0.1.0"] },
+    "topologyVersion": { "type": "string", "description": "Version of THIS specification the doc conforms to (semver).", "examples": ["0.2.0"] },
     "docVersion": { "type": "integer", "description": "Monotonic instance version of THIS document. Bumps on any change, including capability `ref` (re)assignment. The data-plane protobuf carries `doc_version`; a consumer decodes telemetry/encodes control against the doc of the matching docVersion (re-reading the retained topology on an unknown version).", "examples": [1] },
     "id": { "type": "string", "description": "Stable identifier for this document / site / fragment." },
     "scope": { "enum": ["site", "fragment"], "default": "fragment", "description": "'fragment' = one producer's slice (the consumer merges fragments by node identity); 'site' = an already-merged graph." },

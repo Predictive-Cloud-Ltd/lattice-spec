@@ -1,7 +1,7 @@
 {
   "name": "lattice-editor",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Live editor + validator + topology visualiser for Lattice documents (editor.lattice-spec.org).",
   "scripts": {

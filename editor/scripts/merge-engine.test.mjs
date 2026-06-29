@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { merge } from "./.gen/merge-engine.js";
 import { checkSemanticInvariants } from "../src/conformance.js";
 
-const frag = (over = {}) => ({ topologyVersion: "0.1.0", scope: "fragment", producer: { name: "p", provider: "x", authority: 0 }, nodes: [], ...over });
+const frag = (over = {}) => ({ topologyVersion: "0.2.0", scope: "fragment", producer: { name: "p", provider: "x", authority: 0 }, nodes: [], ...over });
 
 test("union: same node via two peer providers → one node, ranked access paths, unioned caps", () => {
   const d = frag({ producer: { name: "gw", provider: "gw", authority: 0 }, nodes: [
@@ -118,7 +118,7 @@ test("tombstone of an absent element is a no-op", () => {
 });
 
 test("incompatible topologyVersion majors throw", () => {
-  const a = frag({ topologyVersion: "0.1.0", nodes: [{ id: "N", kind: "inverter" }] });
+  const a = frag({ topologyVersion: "0.2.0", nodes: [{ id: "N", kind: "inverter" }] });
   const b = frag({ topologyVersion: "1.0.0", nodes: [{ id: "N", kind: "inverter" }] });
   assert.throws(() => merge([a, b]), /incompatible topologyVersion majors/);
 });
@@ -128,7 +128,7 @@ test("empty input raises (no valid zero-node site)", () => {
 });
 
 test("deviceTypes are carried into the merged site so node deviceType resolves", () => {
-  const fragDoc = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
+  const fragDoc = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
     deviceTypes: [{ key: "ge-aio", capabilities: [{ capability: "battery.soc", read: { protocol: "modbus", address: 60 } }] }],
     nodes: [{ id: "INV", kind: "inverter", deviceType: "ge-aio" }] };
   const { site } = merge([fragDoc]);
@@ -138,10 +138,10 @@ test("deviceTypes are carried into the merged site so node deviceType resolves",
 });
 
 test("deviceTypes union dedups by key across fragments (higher authority wins)", () => {
-  const a = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
+  const a = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
     deviceTypes: [{ key: "ge-aio", capabilities: [{ capability: "battery.soc", read: {} }] }],
     nodes: [{ id: "INV", kind: "inverter", deviceType: "ge-aio" }] };
-  const b = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "i", provider: "installer", authority: 50 }, docVersion: 1,
+  const b = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "i", provider: "installer", authority: 50 }, docVersion: 1,
     deviceTypes: [{ key: "ge-aio", capabilities: [{ capability: "battery.power", read: {} }] }],
     nodes: [{ id: "INV", kind: "inverter", deviceType: "ge-aio" }] };
   const { site } = merge([a, b]);
@@ -150,22 +150,22 @@ test("deviceTypes union dedups by key across fragments (higher authority wins)",
 });
 
 test("site.id survives from a low-authority input when the top input omits id", () => {
-  const disc = { topologyVersion: "0.1.0", scope: "fragment", id: "site:home", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1, nodes: [{ id: "INV", kind: "inverter" }] };
-  const over = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "installer", provider: "installer", authority: 50 }, docVersion: 1, nodes: [{ id: "INV", kind: "gateway" }] };
+  const disc = { topologyVersion: "0.2.0", scope: "fragment", id: "site:home", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1, nodes: [{ id: "INV", kind: "inverter" }] };
+  const over = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "installer", provider: "installer", authority: 50 }, docVersion: 1, nodes: [{ id: "INV", kind: "gateway" }] };
   const { site } = merge([disc, over]);
   assert.equal(site.id, "site:home");
   assert.equal(site.nodes[0].kind, "gateway");
 });
 
 test("site.id: higher-authority input wins when both inputs set id", () => {
-  const low = { topologyVersion: "0.1.0", scope: "fragment", id: "site:discovered", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1, nodes: [{ id: "N", kind: "inverter" }] };
-  const high = { topologyVersion: "0.1.0", scope: "fragment", id: "site:authoritative", producer: { name: "i", provider: "installer", authority: 50 }, docVersion: 1, nodes: [{ id: "N", kind: "inverter" }] };
+  const low = { topologyVersion: "0.2.0", scope: "fragment", id: "site:discovered", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1, nodes: [{ id: "N", kind: "inverter" }] };
+  const high = { topologyVersion: "0.2.0", scope: "fragment", id: "site:authoritative", producer: { name: "i", provider: "installer", authority: 50 }, docVersion: 1, nodes: [{ id: "N", kind: "inverter" }] };
   assert.equal(merge([low, high]).site.id, "site:authoritative");
   assert.equal(merge([high, low]).site.id, "site:authoritative");
 });
 
 test("access paths at equal preference sort by id codepoint order (not locale)", () => {
-  const frag = { topologyVersion: "0.1.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
+  const frag = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
     nodes: [{ id: "INV", kind: "inverter", accessPaths: [{ id: "a-local", provider: "gw", preference: 5 }, { id: "B-cloud", provider: "cloud", preference: 5 }] }] };
   // codepoint: 'B'(0x42) < 'a'(0x61) -> B-cloud first; localeCompare case-folds and would put a-local first
   assert.deepEqual(merge([frag]).site.nodes[0].accessPaths.map((ap) => ap.id), ["B-cloud", "a-local"]);

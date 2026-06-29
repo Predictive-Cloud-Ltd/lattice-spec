@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const schemaPath = resolve(here, "..", "..", "0.1.0", "topology-capability-doc.schema.json");
+const schemaPath = resolve(here, "..", "..", "0.2.0", "topology-capability-doc.schema.json");
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 const ajvT = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajvT);
@@ -25,7 +25,7 @@ const validateProducer = ajvT.compile({ $ref: schema.$id + "#/$defs/producer" })
 // Minimal schema-valid building blocks the checker can reason about.
 const baseNode = { id: "N1", kind: "inverter" };
 const fragment = (overrides = {}) => ({
-  topologyVersion: "0.1.0",
+  topologyVersion: "0.2.0",
   scope: "fragment",
   producer: { name: "p", provider: "x" },
   nodes: [baseNode],

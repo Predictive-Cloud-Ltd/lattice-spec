@@ -6,7 +6,7 @@ A live editor, validator and topology visualiser for [Lattice](https://lattice-s
 - **Live validation** against the meta-schema via `ajv` (JSON Schema 2020-12).
 - **Topology graph** (cytoscape) + a capability list rendered from the document.
 
-The schema and example are copied from the repo's `0.1.0/` at build time (`scripts/copy-artifacts.mjs`) — single source of truth, no drift.
+The schema and example are copied from the repo's `0.2.0/` at build time (`scripts/copy-artifacts.mjs`) — single source of truth, no drift.
 
 ## Develop
 

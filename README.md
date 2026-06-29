@@ -2,9 +2,9 @@
 
 **An open standard for describing device topology & capability — "OpenAPI for energy devices."**
 
-[![spec](https://img.shields.io/badge/spec-v0.1%20draft-blue)](spec/) [![licence](https://img.shields.io/badge/licence-CC--BY--4.0%20%2F%20Apache--2.0-green)](LICENSE.md)
+[![spec](https://img.shields.io/badge/spec-v0.2.0-blue)](spec/) [![licence](https://img.shields.io/badge/licence-CC--BY--4.0%20%2F%20Apache--2.0-green)](LICENSE.md)
 
-> **Status:** Draft v0.1 (pre-release). Canonical home: **https://lattice-spec.org**. The name *Lattice* is provisional pending a trademark check. Incubated within [PredBat](https://predbat.com); intended for donation to a neutral foundation (LF Energy / Eclipse Foundation) once external adopters exist.
+> **Status:** v0.2.0 — first frozen release. The `0.2.0/` artifacts are stable; subsequent changes are cut as new versioned directories rather than edited in place. See [`CHANGELOG.md`](CHANGELOG.md). Canonical home: **https://lattice-spec.org**. The name *Lattice* is provisional pending a trademark check. Incubated within [PredBat](https://predbat.com); intended for donation to a neutral foundation (LF Energy / Eclipse Foundation) once external adopters exist.
 
 ## What it is
 
@@ -19,11 +19,11 @@ Just as a web API ships an `openapi.json` and any client talks to it without bes
 - **Bindings** — the concrete "how" (protocol / address / encoding / scaling), reachable via one or more **ranked access paths** with fallback (local gateway *or* manufacturer cloud).
 - **Data plane** — protobuf telemetry + high-level control intents over MQTT, *typed by* the document (a `cap_ref` codec; aligns with Eclipse Sparkplug B).
 
-## Normative artifacts (v0.1.0)
+## Normative artifacts (v0.2.0)
 
-- **Meta-schema** (JSON Schema 2020-12): [`0.1.0/topology-capability-doc.schema.json`](0.1.0/topology-capability-doc.schema.json) — canonical `$id`: `https://lattice-spec.org/0.1.0/topology-capability-doc.schema.json`
-- **Data plane** (protobuf): [`0.1.0/topology-data-plane.proto`](0.1.0/topology-data-plane.proto)
-- **Worked example** (vendor-neutral; validates against the schema): [`0.1.0/examples/example-site.topology.json`](0.1.0/examples/example-site.topology.json)
+- **Meta-schema** (JSON Schema 2020-12): [`0.2.0/topology-capability-doc.schema.json`](0.2.0/topology-capability-doc.schema.json) — canonical `$id`: `https://lattice-spec.org/0.2.0/topology-capability-doc.schema.json`
+- **Data plane** (protobuf): [`0.2.0/topology-data-plane.proto`](0.2.0/topology-data-plane.proto)
+- **Worked example** (vendor-neutral; validates against the schema): [`0.2.0/examples/example-site.topology.json`](0.2.0/examples/example-site.topology.json)
 - **Conformance corpora** (language-neutral golden tests): [`conformance/merge/`](conformance/merge/), [`conformance/resolve/`](conformance/resolve/), and [`conformance/transform/`](conformance/transform/)
 
 ## Implementing

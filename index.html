@@ -35,7 +35,7 @@
     <header>
       <div class="logo">Lattice</div>
       <div class="tag">An open standard for describing device topology &amp; capability — <em>OpenAPI for energy devices</em>.</div>
-      <span class="pill">Draft v0.1 · provisional name · pre-release</span>
+      <span class="pill">v0.2.0 · first frozen release · provisional name</span>
     </header>
 
     <p>Describe a site's devices — what's there, how it's wired together, what each can measure or do, and concretely how to read and control it — as a <strong>document</strong> any consumer ingests with <strong>zero per-vendor code</strong>. The same model is <strong>scale-free</strong>: one battery cell, a home, a building, or a whole city.</p>
@@ -43,11 +43,11 @@
     <h2>The model, in one breath</h2>
     <p class="muted">A <strong>graph</strong> of nodes (typed relationships: contains / measures / controls / powers) → each offering <strong>capabilities</strong> (domain-agnostic read/control) → with concrete <strong>bindings</strong> reachable via <strong>ranked access paths</strong> (gateway <em>or</em> cloud, with fallback) → a protobuf <strong>data plane</strong> over MQTT, typed by the document.</p>
 
-    <h2>Artifacts (v0.1.0)</h2>
+    <h2>Artifacts (v0.2.0)</h2>
     <div class="grid">
-      <a class="card" href="/0.1.0/topology-capability-doc.schema.json"><h3>Meta-schema →</h3><p>JSON Schema 2020-12. The canonical <code>$id</code>.</p></a>
-      <a class="card" href="/0.1.0/topology-data-plane.proto"><h3>Data plane →</h3><p>Protobuf telemetry + control over MQTT.</p></a>
-      <a class="card" href="/0.1.0/examples/example-site.topology.json"><h3>Example →</h3><p>A vendor-neutral home site (validates).</p></a>
+      <a class="card" href="/0.2.0/topology-capability-doc.schema.json"><h3>Meta-schema →</h3><p>JSON Schema 2020-12. The canonical <code>$id</code>.</p></a>
+      <a class="card" href="/0.2.0/topology-data-plane.proto"><h3>Data plane →</h3><p>Protobuf telemetry + control over MQTT.</p></a>
+      <a class="card" href="/0.2.0/examples/example-site.topology.json"><h3>Example →</h3><p>A vendor-neutral home site (validates).</p></a>
       <a class="card" href="https://github.com/Predictive-Cloud-Ltd/lattice-spec"><h3>GitHub →</h3><p>Spec, governance, licence, RFCs.</p></a>
     </div>
 

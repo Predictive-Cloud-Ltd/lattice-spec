@@ -2,7 +2,7 @@
 
 > **Lattice is OpenAPI for energy-device capabilities:** producers describe devices, mergers reconcile sources, and controllers operate against generic capabilities instead of vendor code.
 
-This is the adopter's guide and self-certification checklist. The normative schema is [`0.1.0/topology-capability-doc.schema.json`](0.1.0/topology-capability-doc.schema.json); the behaviours below are pinned by language-neutral conformance corpora ([`conformance/`](conformance/)). If your implementation passes those corpora and meets the [acceptance criteria](#acceptance-criteria), it is credible — in any language, including obscure ones.
+This is the adopter's guide and self-certification checklist. The normative schema is [`0.2.0/topology-capability-doc.schema.json`](0.2.0/topology-capability-doc.schema.json); the behaviours below are pinned by language-neutral conformance corpora ([`conformance/`](conformance/)). If your implementation passes those corpora and meets the [acceptance criteria](#acceptance-criteria), it is credible — in any language, including obscure ones.
 
 ## The problem
 
@@ -99,7 +99,7 @@ The controller decides *what* to do generically; adapters only execute declared 
 
 ## Data plane & versioning
 
-Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [`0.1.0/topology-data-plane.proto`](0.1.0/topology-data-plane.proto)). `cap_ref` identifies a `(node, capability)` within a document; `docVersion` identifies the document a consumer is decoding/encoding against. A consumer that sees an unknown `docVersion` re-reads the retained topology.
+Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [`0.2.0/topology-data-plane.proto`](0.2.0/topology-data-plane.proto)). `cap_ref` identifies a `(node, capability)` within a document; `docVersion` identifies the document a consumer is decoding/encoding against. A consumer that sees an unknown `docVersion` re-reads the retained topology.
 
 `docVersion` is **implementation-local**: each merged document is produced by one merger that owns its `docVersion`, and consumers use the concrete document they were handed. It is therefore *not* pinned across languages in the merge corpus (the corpus normalizes it out and pins merge *semantics*). Each implementation mints its own deterministic, content-derived `docVersion`; that it is a positive integer which changes with content is an in-language test. (If a future model needs independent mergers to produce *interchangeable* `doc_version`s, that requires canonical digest rules and pinning the exact value — out of scope today.)
 
