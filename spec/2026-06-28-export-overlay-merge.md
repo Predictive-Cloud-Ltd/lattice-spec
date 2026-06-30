@@ -125,7 +125,7 @@ Identity-keyed **union** across all inputs, keyed by `key`. On collision the hig
 An element with `removed: true` in a fragment/overlay is a tombstone. Tombstone semantics:
 
 - A tombstone of authority A suppresses all same-key entries of authority ≤ A.
-- A document of authority > A may re-introduce the element (the higher-authority entry survives).
+- A document of authority > A may re-introduce the element (the higher-authority entry survives). The tombstone acts as a **barrier**: when a node is re-introduced above a removal, only contributors ranked **strictly above the highest tombstone** participate in its field/bag/collection merge — sub-barrier (lower-authority) discovery data is **not** resurrected. (A node merges field-by-field across its contributors, so this barrier is what stops a repudiated discovery's attributes/access-paths/capabilities from leaking back when a higher authority re-asserts the node's existence.)
 - The merged document **omits** tombstoned elements and MUST NOT emit `removed` in its output.
 - Removing a node also drops all relationships that reference it (referential integrity; a warning is emitted per dropped relationship — see §6).
 - A tombstone matches **exactly by its identity key** (§3.1). To remove a specific access-path offer, the tombstone must name that `accessPath`; a bare `{ capability, removed: true }` with no `accessPath` targets **only** the access-path-less (derived) offer — it does not remove access-path offers for that capability.
@@ -249,6 +249,8 @@ The `conformance/merge/` corpus (`cases.json` + `expected.json`) is the normativ
 10. **tombstone-noop** — tombstoning an absent element changes nothing and emits no warnings.
 11. **deviceTypes** — device-type descriptor carried into the merged site so node `deviceType` references resolve.
 12. **site.id survival** — `site.id` set by a low-authority input survives when the higher-authority overlay omits `id` (highest-authority setter wins; here only one input sets it).
+13. **tiebreak** — equal-preference access paths sort by `id` codepoint order (not locale).
+14. **tombstone-barrier** — a node tombstoned by a mid-authority overlay and re-introduced by a higher-authority one carries ONLY the above-barrier data; the original low-authority discovery's attributes/access-paths/capabilities are not resurrected.
 
 Plus unit cases: schema gating for tombstone forms; a bare-`capability` tombstone removes only the derived (access-path-less) offer, not access-path offers; synthetic `producer` + digest `docVersion`; incompatible-major throw.
 

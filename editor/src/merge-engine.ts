@@ -169,7 +169,13 @@ export function merge(docs: Doc[]): MergeResult {
     const contribs = nodeContribs.get(id)!;
     if (topBy(contribs).item.removed === true) continue; // top-ranked contributor is a tombstone
     survivingNodeIds.add(id);
-    mergedNodes.push(mergeNode(contribs.filter((c) => c.item.removed !== true), warnings));
+    // Tombstone barrier: a removal suppresses every contributor at or below its rank. A higher-ranked
+    // contributor re-adds the node but must NOT resurrect sub-barrier (lower-authority) discovery data,
+    // so only contributors ranked strictly above the highest tombstone participate in the merge.
+    const tombstones = contribs.filter((c) => c.item.removed === true);
+    const barrier = tombstones.length ? topBy(tombstones).rank : undefined;
+    const live = contribs.filter((c) => c.item.removed !== true && (barrier === undefined || better(c.rank, barrier)));
+    mergedNodes.push(mergeNode(live, warnings));
   }
 
   // Relationships: keyed (from,to,type); union by rank; drop tombstoned + dangling.

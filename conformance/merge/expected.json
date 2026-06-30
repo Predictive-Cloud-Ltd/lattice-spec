@@ -522,5 +522,42 @@
       ]
     },
     "warnings": []
+  },
+  "tombstone-barrier: re-add above a removal does not resurrect sub-barrier discovery": {
+    "site": {
+      "topologyVersion": "0.2.0",
+      "scope": "site",
+      "producer": {
+        "name": "lattice-merge",
+        "provider": "lattice-merge",
+        "inputs": [
+          {
+            "name": "gw",
+            "provider": "gw",
+            "authority": 0,
+            "docVersion": 1
+          },
+          {
+            "name": "installer",
+            "provider": "installer",
+            "authority": 50,
+            "docVersion": 1
+          },
+          {
+            "name": "admin",
+            "provider": "admin",
+            "authority": 100,
+            "docVersion": 1
+          }
+        ]
+      },
+      "nodes": [
+        {
+          "id": "N",
+          "kind": "gateway"
+        }
+      ]
+    },
+    "warnings": []
   }
 }
