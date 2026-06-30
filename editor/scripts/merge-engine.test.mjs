@@ -170,3 +170,15 @@ test("access paths at equal preference sort by id codepoint order (not locale)",
   // codepoint: 'B'(0x42) < 'a'(0x61) -> B-cloud first; localeCompare case-folds and would put a-local first
   assert.deepEqual(merge([frag]).site.nodes[0].accessPaths.map((ap) => ap.id), ["B-cloud", "a-local"]);
 });
+
+test("tombstone barrier: re-add above a removal does not resurrect sub-barrier discovery", () => {
+  const disc = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "gw", provider: "gw", authority: 0 }, docVersion: 1,
+    nodes: [{ id: "N", kind: "inverter", attributes: { ratedW: 5000 }, accessPaths: [{ id: "ap", provider: "gw", preference: 10 }],
+      capabilities: [{ capability: "battery.soc", accessPath: "ap", unit: "%", read: { protocol: "modbus", address: 60 } }] }] };
+  const remove = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "installer", provider: "installer", authority: 50 }, docVersion: 1, nodes: [{ id: "N", removed: true }] };
+  const readd = { topologyVersion: "0.2.0", scope: "fragment", producer: { name: "admin", provider: "admin", authority: 100 }, docVersion: 1, nodes: [{ id: "N", kind: "gateway" }] };
+  const { site } = merge([disc, remove, readd]);
+  // node survives (re-added above the tombstone) but carries ONLY the above-barrier admin data
+  assert.equal(site.nodes.length, 1);
+  assert.deepEqual(site.nodes[0], { id: "N", kind: "gateway" });
+});
