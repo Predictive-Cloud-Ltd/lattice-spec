@@ -31,7 +31,6 @@ header .right:hover { text-decoration: underline; }
 .errors li { margin: 2px 0; }
 
 .section { margin: 18px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.graph { height: 320px; border: 1px solid var(--line); border-radius: 10px; background: #0a0f24; }
 
 .caps { display: flex; flex-direction: column; gap: 4px; }
 .cap {

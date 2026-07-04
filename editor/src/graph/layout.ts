@@ -32,8 +32,9 @@ export function layoutGraph<T extends Node>(
       // dagre positions are node centers; React Flow wants top-left corners.
       return { ...n, position: { x: pos.x - dim.width / 2, y: pos.y - dim.height / 2 } };
     });
-  } catch {
+  } catch (err) {
     // Never break the canvas over a layout failure — fitView still renders.
+    console.warn("dagre layout failed; falling back to unpositioned nodes", err);
     return nodes.map((n) => ({ ...n, position: { x: 0, y: 0 } }));
   }
 }
