@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import example from "./generated/example.json";
 import { validateDoc } from "./validate";
-import { Graph } from "./Graph";
+import { TopologyCanvas } from "./graph/TopologyCanvas";
+import { NodeDetailGraph } from "./graph/NodeDetailGraph";
+import { DEFAULT_SAMPLES_TEXT } from "./graph/example-samples";
 import { Resolver } from "./Resolver";
 import { Merge } from "./Merge";
 import { Discover } from "./Discover";
@@ -10,6 +12,22 @@ import { Discover } from "./Discover";
 export default function App() {
   const [mode, setMode] = useState<"editor" | "merge" | "discover">("editor");
   const [text, setText] = useState<string>(JSON.stringify(example, null, 2));
+
+  const [samplesText, setSamplesText] = useState<string>(DEFAULT_SAMPLES_TEXT);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Parse samples, retaining the last good value on JSON errors so the
+  // graph never blanks mid-edit.
+  const lastGoodSamples = useRef<Record<string, Record<string, number>> | null>(null);
+  const samplesParse = useMemo(() => {
+    try {
+      const obj = JSON.parse(samplesText) as Record<string, Record<string, number>>;
+      lastGoodSamples.current = obj;
+      return { samples: obj, err: null as string | null };
+    } catch (e) {
+      return { samples: lastGoodSamples.current, err: (e as Error).message };
+    }
+  }, [samplesText]);
 
   const parsed = useMemo(() => {
     try {
@@ -34,6 +52,12 @@ export default function App() {
 
   const doc = parsed.obj as { nodes?: any[] } | null;
   const nodes = Array.isArray(doc?.nodes) ? doc!.nodes : [];
+
+  // Selection survives only while the node still exists in the doc.
+  const selectedNode = useMemo(
+    () => nodes.find((n: any) => n?.id === selectedId) ?? null,
+    [nodes, selectedId],
+  );
 
   return (
     <div className="app">
@@ -80,7 +104,30 @@ export default function App() {
           <Resolver doc={doc} />
 
           <div className="section">Topology</div>
-          <Graph doc={doc} />
+          <TopologyCanvas
+            doc={doc}
+            samples={samplesParse.samples}
+            selectedId={selectedId}
+            onSelect={(id) => setSelectedId((prev) => (prev === id ? null : id))}
+          />
+
+          <div className="section">Samples <span className="muted small">— paste {"{ nodeId: { capability: value } }"} and watch derived capabilities evaluate</span></div>
+          <div className="samples">
+            <textarea
+              data-testid="samples-input"
+              value={samplesText}
+              onChange={(e) => setSamplesText(e.target.value)}
+              spellCheck={false}
+            />
+            {samplesParse.err && <div className="err">Invalid JSON — {samplesParse.err} (showing last valid samples)</div>}
+          </div>
+
+          {selectedNode && (
+            <>
+              <div className="section">Node detail <span className="muted small">— {String(selectedNode.id)}</span></div>
+              <NodeDetailGraph node={selectedNode} nodeSamples={samplesParse.samples?.[selectedNode.id] ?? {}} />
+            </>
+          )}
 
           <div className="section">Capabilities</div>
           <div className="caps">

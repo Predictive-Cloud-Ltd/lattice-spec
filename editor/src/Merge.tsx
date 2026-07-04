@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { mergeFragments } from "./merge-engine";
-import { Graph } from "./Graph";
+import { TopologyCanvas } from "./graph/TopologyCanvas";
 
 const FRAG_A = `{
   "topologyVersion": "0.2.0",
@@ -82,7 +82,7 @@ export function Merge() {
 
       <div className="merge-out">
         <div className="section">Merged graph <span className="muted small">— by node identity ({merged?.nodeCount ?? 0} nodes)</span></div>
-        <Graph doc={merged?.doc} />
+        <TopologyCanvas doc={merged?.doc} samples={null} selectedId={null} onSelect={() => {}} />
 
         <div className="section">Merged nodes</div>
         <div className="merges">
