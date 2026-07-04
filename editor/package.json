@@ -13,7 +13,7 @@
     "test": "npm run test:conformance && npm run test:unit && npm run test:resolve && npm run test:merge && npm run test:transform && npm run test:graph",
     "test:conformance": "node scripts/conformance.mjs",
     "test:unit": "node --test scripts/conformance.test.mjs",
-    "build:ref": "tsc src/resolve-engine.ts src/merge-engine.ts src/transform-engine.ts src/graph/eval.ts --outDir scripts/.gen --module esnext --target es2020 --moduleResolution bundler --skipLibCheck",
+    "build:ref": "tsc src/resolve-engine.ts src/merge-engine.ts src/transform-engine.ts src/graph/eval.ts src/graph/layout.ts --outDir scripts/.gen --module esnext --target es2020 --moduleResolution bundler --skipLibCheck",
     "pretest:resolve": "npm run build:ref",
     "test:resolve": "node --test scripts/resolve-conformance.test.mjs",
     "resolve:record": "npm run build:ref && node scripts/resolve-record.mjs",
@@ -24,7 +24,7 @@
     "test:transform": "node --test scripts/transform-engine.test.mjs scripts/transform-conformance.test.mjs",
     "transform:record": "npm run build:ref && node scripts/transform-record.mjs",
     "pretest:graph": "npm run build:ref",
-    "test:graph": "node --test scripts/eval.test.mjs"
+    "test:graph": "node --test scripts/eval.test.mjs scripts/layout.test.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
