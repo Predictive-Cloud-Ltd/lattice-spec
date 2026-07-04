@@ -25,7 +25,9 @@
     "transform:record": "npm run build:ref && node scripts/transform-record.mjs"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@monaco-editor/react": "^4.6.0",
+    "@xyflow/react": "^12.11.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "cytoscape": "^3.30.2",
