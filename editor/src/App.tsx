@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import example from "./generated/example.json";
 import { validateDoc } from "./validate";
@@ -16,18 +16,26 @@ export default function App() {
   const [samplesText, setSamplesText] = useState<string>(DEFAULT_SAMPLES_TEXT);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Parse samples, retaining the last good value on JSON errors so the
-  // graph never blanks mid-edit.
+  // Parse samples, retaining the last good value on JSON errors so the graph
+  // never blanks mid-edit. The last-good value is remembered in a commit-time
+  // effect (not during render) so the memo stays pure.
   const lastGoodSamples = useRef<Record<string, Record<string, number>> | null>(null);
-  const samplesParse = useMemo(() => {
+  const rawSamples = useMemo(() => {
     try {
-      const obj = JSON.parse(samplesText) as Record<string, Record<string, number>>;
-      lastGoodSamples.current = obj;
-      return { samples: obj, err: null as string | null };
+      return { samples: JSON.parse(samplesText) as Record<string, Record<string, number>>, err: null as string | null };
     } catch (e) {
-      return { samples: lastGoodSamples.current, err: (e as Error).message };
+      return { samples: null as Record<string, Record<string, number>> | null, err: (e as Error).message };
     }
   }, [samplesText]);
+
+  useEffect(() => {
+    if (rawSamples.err === null) lastGoodSamples.current = rawSamples.samples;
+  }, [rawSamples]);
+
+  const samplesParse = {
+    samples: rawSamples.err === null ? rawSamples.samples : lastGoodSamples.current,
+    err: rawSamples.err,
+  };
 
   const parsed = useMemo(() => {
     try {

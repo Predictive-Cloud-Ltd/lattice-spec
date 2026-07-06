@@ -47,15 +47,16 @@ export function NodeDetailGraph({ node, nodeSamples }: NodeDetailGraphProps) {
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  // The node's derivation model — computed once and reused by both the
+  // sample-refresh effect below and the controls/context render.
+  const detail = useMemo(() => buildNodeDetail(node, nodeSamples), [node, nodeSamples]);
+
   // Sample edits refresh values without touching positions.
   useEffect(() => {
-    const detail = buildNodeDetail(node, nodeSamples);
     const fresh: Record<string, CapabilityNodeData> = {};
     for (const cap of detail.caps) fresh[cap.id] = { ...cap } as CapabilityNodeData;
     setNodes((nds) => nds.map((n) => (fresh[n.id] ? { ...n, data: fresh[n.id] } : n)));
-  }, [node, nodeSamples, setNodes]);
-
-  const detail = useMemo(() => buildNodeDetail(node, nodeSamples), [node, nodeSamples]);
+  }, [detail, setNodes]);
 
   const tidy = () => {
     setNodes((nds) => layoutGraph(nds, edges, "LR"));
