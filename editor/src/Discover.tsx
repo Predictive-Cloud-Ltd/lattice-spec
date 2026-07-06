@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { discover } from "./discover-engine";
-import { Graph } from "./Graph";
+import { TopologyCanvas } from "./graph/TopologyCanvas";
 
 const PROBES = `[
   { "serial": "GW-0001",   "dtc": "0x7001", "aioCount": 2 },
@@ -47,7 +47,7 @@ export function Discover() {
         </div>
 
         <div className="section">Generated fragment</div>
-        <Graph doc={out?.fragment} />
+        <TopologyCanvas doc={out?.fragment} samples={null} selectedId={null} onSelect={() => {}} />
         <pre className="fragjson">{out ? JSON.stringify(out.fragment, null, 2) : ""}</pre>
 
         <p className="muted small merge-note">

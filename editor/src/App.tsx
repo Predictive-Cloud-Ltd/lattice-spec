@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import example from "./generated/example.json";
 import { validateDoc } from "./validate";
-import { Graph } from "./Graph";
+import { TopologyCanvas } from "./graph/TopologyCanvas";
+import { NodeDetailGraph } from "./graph/NodeDetailGraph";
+import { DEFAULT_SAMPLES_TEXT } from "./graph/example-samples";
 import { Resolver } from "./Resolver";
 import { Merge } from "./Merge";
 import { Discover } from "./Discover";
@@ -10,6 +12,30 @@ import { Discover } from "./Discover";
 export default function App() {
   const [mode, setMode] = useState<"editor" | "merge" | "discover">("editor");
   const [text, setText] = useState<string>(JSON.stringify(example, null, 2));
+
+  const [samplesText, setSamplesText] = useState<string>(DEFAULT_SAMPLES_TEXT);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Parse samples, retaining the last good value on JSON errors so the graph
+  // never blanks mid-edit. The last-good value is remembered in a commit-time
+  // effect (not during render) so the memo stays pure.
+  const lastGoodSamples = useRef<Record<string, Record<string, number>> | null>(null);
+  const rawSamples = useMemo(() => {
+    try {
+      return { samples: JSON.parse(samplesText) as Record<string, Record<string, number>>, err: null as string | null };
+    } catch (e) {
+      return { samples: null as Record<string, Record<string, number>> | null, err: (e as Error).message };
+    }
+  }, [samplesText]);
+
+  useEffect(() => {
+    if (rawSamples.err === null) lastGoodSamples.current = rawSamples.samples;
+  }, [rawSamples]);
+
+  const samplesParse = {
+    samples: rawSamples.err === null ? rawSamples.samples : lastGoodSamples.current,
+    err: rawSamples.err,
+  };
 
   const parsed = useMemo(() => {
     try {
@@ -34,6 +60,15 @@ export default function App() {
 
   const doc = parsed.obj as { nodes?: any[] } | null;
   const nodes = Array.isArray(doc?.nodes) ? doc!.nodes : [];
+
+  // Selection survives only while the node still exists in the doc.
+  // Compare against the stringified id: React Flow node ids are always strings
+  // (inspector-model coerces String(n.id)), so a doc with a numeric id would
+  // otherwise never match and the detail panel would never open.
+  const selectedNode = useMemo(
+    () => nodes.find((n: any) => String(n?.id) === selectedId) ?? null,
+    [nodes, selectedId],
+  );
 
   return (
     <div className="app">
@@ -80,7 +115,30 @@ export default function App() {
           <Resolver doc={doc} />
 
           <div className="section">Topology</div>
-          <Graph doc={doc} />
+          <TopologyCanvas
+            doc={doc}
+            samples={samplesParse.samples}
+            selectedId={selectedId}
+            onSelect={(id) => setSelectedId((prev) => (prev === id ? null : id))}
+          />
+
+          <div className="section">Samples <span className="muted small">— paste {"{ nodeId: { capability: value } }"} and watch derived capabilities evaluate</span></div>
+          <div className="samples">
+            <textarea
+              data-testid="samples-input"
+              value={samplesText}
+              onChange={(e) => setSamplesText(e.target.value)}
+              spellCheck={false}
+            />
+            {samplesParse.err && <div className="err">Invalid JSON — {samplesParse.err} (showing last valid samples)</div>}
+          </div>
+
+          {selectedNode && (
+            <>
+              <div className="section">Node detail <span className="muted small">— {String(selectedNode.id)}</span></div>
+              <NodeDetailGraph node={selectedNode} nodeSamples={samplesParse.samples?.[selectedNode.id] ?? {}} />
+            </>
+          )}
 
           <div className="section">Capabilities</div>
           <div className="caps">
