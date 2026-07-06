@@ -37,7 +37,10 @@ function evalCap(
     if (op !== undefined && op !== "sum") return undefined;
     let total = 0;
     for (const inp of offer.derived.inputs || []) {
-      const v = evalCap(node, inp.ref, nodeSamples, seen);
+      // Clone `seen` per branch: a capability legitimately reached via two
+      // derivation paths is not a cycle. Only the ancestor chain (real cycles)
+      // is carried down; sibling visits stay isolated.
+      const v = evalCap(node, inp.ref, nodeSamples, new Set(seen));
       if (v == null) return undefined;
       total += (inp.weight ?? 1) * v;
     }

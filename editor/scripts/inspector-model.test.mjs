@@ -86,3 +86,19 @@ test("detail: undeclared derived input becomes an external-input placeholder", (
   assert.equal(ghost.detail, "external input");
   assert.equal(ghost.value, "5");
 });
+
+test("detail: depth counts the deepest path even when it revisits a shared node", () => {
+  // d = sum(m, e2); m = sum(z); e1 = sum(m); e2 = sum(e1).
+  // d's deepest path is d→e2→e1→m→z (depth 4). `m` is visited first as a
+  // direct input of d, so a shared `seen` set blocks the deep path through
+  // e2→e1→m and undercounts d to 3.
+  const n = { capabilities: [
+    { capability: "z", read: {} },
+    { capability: "m", derived: { op: "sum", inputs: [{ ref: "z" }] } },
+    { capability: "e1", derived: { op: "sum", inputs: [{ ref: "m" }] } },
+    { capability: "e2", derived: { op: "sum", inputs: [{ ref: "e1" }] } },
+    { capability: "d", derived: { op: "sum", inputs: [{ ref: "m" }, { ref: "e2" }] } },
+  ] };
+  const detail = buildNodeDetail(n, {});
+  assert.equal(detail.caps.find((c) => c.id === "d").depth, 4);
+});
