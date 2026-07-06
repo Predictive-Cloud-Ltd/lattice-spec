@@ -183,6 +183,18 @@ where the echo-back reads are; it does not run the check.
 
 **Arbitration between independent controllers is out of scope** — it is a runtime/orchestration concern, not a device-description one (a data contract describes capabilities; it does not hold a cross-writer lock, just as OpenAPI describes an API without managing concurrent callers). When an external controller (a VPP dispatch, a manual override) holds a device for a window, the component that runs both controllers arbitrates — using `ownedNodes` to see which subtree each plan governs and to defer or refuse before they race. Claim-state, claim transfer/expiry, and the refuse-on-conflict decision live in that orchestration layer, which this spec **enables** (via `ownedNodes`) but does not implement.
 
+### Ownership lifecycle & external claims (out of this contract)
+
+The boundary, stated plainly so it isn't mistaken for a gap:
+
+| The data contract (this spec) provides | The orchestration layer owns |
+|---|---|
+| Single-altitude selection (§5) — one altitude per plan, never an aggregate *and* its leaves. | **Claim lifecycle:** acquire a claim on dispatch, release it on completion, expire it on a TTL. |
+| `ownedNodes` — the exact device-subtree a resolved plan governs (the union across a hybrid plan). | **Claim transfer / hand-back:** an external owner (VPP) advertising a hold over a subtree and returning it when its window ends. |
+| The static topology to compute subtree overlap between two plans. | **The refuse/defer decision** when two live claims overlap. |
+
+A claim is **live, time-bounded runtime state** — who is holding which subtree, until when — not a property of a device that belongs in a topology document. Modelling it as data here would be modelling a distributed lock in a capability description; the spec deliberately does not. What it guarantees instead is that `ownedNodes` gives the orchestrator the one thing it cannot compute for itself — the precise subtree each plan governs — so the arbiter that runs the controllers (for PredBat, the operator/orchestration layer) has an exact, shared basis to detect and resolve contention. Defining that layer's claim protocol is separate work, tracked outside this data-contract spec.
+
 ---
 
 ## 7. Conformance tiers
@@ -229,4 +241,4 @@ The planner emits **intent**, not register pokes: for a target node (a leaf, or 
 4. Whether `target_soc` "by time T" (deadline semantics) is a distinct intent from a schedule slot.
 5. ~~Aggregate semantics when a coordinator only *partially* covers a target set~~ — **DECIDED (capability-driven hybrid):** the coordinator declares `aggregate.partialAddressing`. `true` → one delegated command scoped to the covered children + cover the rest by the same rule (hybrid plan); `false` (default, true black box) → hub-expand its overlapped leaves when each is independently controllable, else refuse (`UNREACHABLE_PARTIAL`). See §5 (`resolve_control`) and the §8 partial-coverage example; ownership union in §6.
 6. ~~Does a delegated aggregate need per-child *feedback*~~ — **DECIDED (single ack + echo-back verify):** the op's result is the coordinator's one ack ("accepted", not "every child applied"); a control offer declares `feedback: ack|perChild` (default `ack`). Per-child assurance is a read of each child leaf's echo-back state, which the topology already exposes — enabled, not mandated. See §6 "Command results & verification".
-7. Ownership lifecycle — how claims are acquired/released/expired, and how an external owner (VPP) advertises and hands back a claim. (Runtime/orchestration — §6 scopes cross-controller arbitration out of this data contract.)
+7. ~~Ownership lifecycle — how claims are acquired/released/expired, and how an external owner (VPP) advertises and hands back a claim~~ — **DECIDED (out of this contract):** a claim is live, time-bounded runtime state, not topology data; the claim lifecycle + external-owner advertise/hand-back live in the orchestration layer that runs the controllers. This spec enables it via `ownedNodes` (the exact subtree a plan governs) and single-altitude selection, and stops there. See §6 "Ownership lifecycle & external claims (out of this contract)".
