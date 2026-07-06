@@ -24,7 +24,7 @@
       "accessPaths": [
         { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
       ],
-      "aggregate": { "serves": true, "minChildren": 2, "priority": 10, "over": "contains" },
+      "aggregate": { "serves": true, "minChildren": 2, "priority": 10, "over": "contains", "partialAddressing": true },
       "capabilities": [
         {
           "capability": "meter.grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
@@ -48,7 +48,7 @@
         },
         {
           "capability": "battery.charge_power_limit", "ref": 2, "accessPath": "gw-local", "unit": "W",
-          "shape": "setpoint", "tier": 1,
+          "shape": "setpoint", "tier": 1, "feedback": "ack",
           "constraints": { "min": 0, "max": "rated", "scope": "node" },
           "distribution": "replicate",
           "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }

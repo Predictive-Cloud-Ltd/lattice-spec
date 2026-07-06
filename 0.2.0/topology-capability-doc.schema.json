@@ -93,7 +93,8 @@
         "serves": { "type": "boolean" },
         "minChildren": { "type": "integer", "default": 0, "description": "Qualifies only if the configured child-count over `over` >= this. e.g. EMS=0 (always primary), Gateway=2 (only when it fronts >1 unit)." },
         "priority": { "type": "integer", "default": 0, "description": "Higher wins when several aggregators qualify (e.g. EMS > Gateway)." },
-        "over": { "$ref": "#/$defs/relationType" }
+        "over": { "$ref": "#/$defs/relationType" },
+        "partialAddressing": { "type": "boolean", "default": false, "description": "When this node serves as a delegated coordinator, whether it accepts a SUBSET of its children as the black-box command target. false (default) = a true black box that only honours 'all my units': a target covering only some of its children is served by hub-expanding those leaves (each must be independently controllable) or refused. true = resolution may send one delegated command scoped to just the covered children and cover the rest separately (a hybrid plan)." }
       }
     },
     "capabilityOffer": {
@@ -129,6 +130,11 @@
         "tier": {
           "enum": [1, 2],
           "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
+        },
+        "feedback": {
+          "enum": ["ack", "perChild"],
+          "default": "ack",
+          "description": "What a successful control op on this offer reports. 'ack' (default) = a single acceptance; on a delegated aggregate this is the coordinator's ONE ack — it means 'the coordinator accepted the command', NOT that every child physically applied it, and it does not decompose into per-child results. 'perChild' = the binding reports individual child outcomes. When 'ack', per-child assurance is obtained by reading each child leaf's own state capability (echo-back) — the spec enables this via the leaves' read offers but does not perform it."
         },
         "removed": { "type": "boolean", "description": "Overlay tombstone: when true this offer (keyed by capability+accessPath) is removed; only `capability` is required (a bare-capability tombstone with no `accessPath` targets the access-path-less derived offer)." }
       }
