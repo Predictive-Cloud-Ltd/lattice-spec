@@ -65,3 +65,23 @@ test("non-numeric sample in a derived input yields undefined, not NaN", () => {
   });
   assert.equal(v, undefined);
 });
+
+// Diamond derivation: d = a + b, a = x, b = x. `x` is reached via two valid
+// paths — not a cycle. A shared `seen` set wrongly treats the second visit to
+// `x` as a cycle and collapses `d` to undefined.
+const diamond = {
+  capabilities: [
+    { capability: "x", read: { op: "read_input", address: 1 } },
+    { capability: "a", derived: { op: "sum", inputs: [{ ref: "x" }] } },
+    { capability: "b", derived: { op: "sum", inputs: [{ ref: "x" }] } },
+    { capability: "d", derived: { op: "sum", inputs: [{ ref: "a" }, { ref: "b" }] } },
+  ],
+};
+
+test("diamond-shaped derivation evaluates both paths (shared node is not a cycle)", () => {
+  assert.equal(evalNodeCapability(diamond, "d", { x: 10 }), 20);
+});
+
+test("a genuine cycle is still caught after the per-path fix", () => {
+  assert.equal(evalNodeCapability(node, "cycle.a", { x: 10 }), undefined);
+});

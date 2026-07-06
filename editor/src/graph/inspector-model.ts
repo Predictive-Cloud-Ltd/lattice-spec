@@ -68,7 +68,9 @@ export function buildNodeDetail(node: any, nodeSamples: Record<string, number>):
     seen.add(cap);
     const o = byName[cap];
     if (!o?.derived) return 0;
-    const ins = (o.derived.inputs ?? []).map((i: any) => depthOf(i.ref, seen));
+    // Clone `seen` per branch so a shared sub-node reached via two paths is
+    // counted on each, not blocked as a cycle after the first visit.
+    const ins = (o.derived.inputs ?? []).map((i: any) => depthOf(i.ref, new Set(seen)));
     return 1 + (ins.length ? Math.max(...ins) : 0);
   };
 
