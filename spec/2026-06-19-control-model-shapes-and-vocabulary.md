@@ -122,13 +122,31 @@ The consumer declares intent over a **target set** of devices (or the site) and 
 
 ```
 resolve_control(intent, target_set):
-  cover target_set with the fewest controller nodes,
-    preferring a real coordinator that *wholly* owns a subtree (delegated),
-    else the hub over the remaining leaves (expanded);
+  cover target_set with the fewest controller nodes:
+    prefer a real coordinator that *wholly* owns a covered subtree (delegated);
+    a coordinator that only *partially* overlaps target_set is used per its
+      declared aggregate.partialAddressing:
+        partialAddressing=true  -> one delegated command scoped to the covered
+          children, then cover the remainder by the same rule (a HYBRID plan);
+        partialAddressing=false -> the coordinator is a black box that only
+          honours "all my units": hub-expand its overlapped leaves, each of
+          which MUST be independently controllable; if a leaf is reachable
+          ONLY via the coordinator, REFUSE (UNREACHABLE_PARTIAL) — widen the
+          target to the coordinator's whole subtree, or drop the leaf;
+    cover any leaves no coordinator serves with the hub (expanded);
   a request spanning two coordinators yields two delegated commands
     (there is no single physical black box for both);
-  each chosen node claims ownership of its subtree (§6).
+  each chosen node claims ownership of exactly the subtree its command governs (§6).
 ```
+
+**Partial coverage.** The `partialAddressing=true` path is the general case of
+the two-coordinators rule: a plan may mix one delegated command per coordinator
+that can be scoped to its covered children, plus a hub-expanded command over the
+leaves no coordinator serves. The `false` default is conservative — a physical
+EMS that only accepts a whole-fleet command is never sent a subset it can't
+honour; instead its leaves are driven directly, or the request is refused when a
+leaf has no independent control path. This keeps the coordinator's coordination
+for the part it owns without silently degrading a black box into partial writes.
 
 **Default policy:** prefer the real coordinator when one exists (it encodes coordination the hub can't reproduce from outside, and commanding the units behind it instead has historically broken control); fall back to hub-expanded only where no coordinator covers the leaves. A consumer may always **override the altitude explicitly** (e.g. target one battery for a fault or an experiment). Routing knowledge lives in the topology graph, not in the consumer — the planner says "charge these", not "which unit is the controller".
 
@@ -142,6 +160,26 @@ This spec covers the **resolution-time** half of that and deliberately stops the
 
 - **Single-altitude selection.** Resolution (§5) picks exactly one altitude for a control plan, so a single consumer never self-contends by commanding an aggregate and the units beneath it. A consumer may override the altitude explicitly, but still gets one.
 - **Ownership is exposed, not enforced.** Resolution reports `ownedNodes` — the device-subtree a plan governs. That is the information an orchestrator needs to detect contention.
+- **Hybrid plans still own a partition.** When a partial-coverage plan (§5) mixes a delegated coordinator command with a hub-expanded command, the coordinator owns the covered subset and the hub owns the expanded leaves; `ownedNodes` is the union. Because §5 assigns each leaf to exactly one command, no leaf is ever governed at two altitudes — the single-altitude invariant holds across the whole hybrid plan.
+
+### Command results & verification
+
+The contract-level result of a control operation is the binding's **ack**. For a
+delegated aggregate this is the coordinator's *single* ack: it means "the
+coordinator accepted the command", **not** "every child physically applied it",
+and it does not decompose into per-child results. A control offer declares what
+its op returns via `feedback` — `ack` (default) or `perChild` (the binding
+reports individual child outcomes).
+
+When `feedback: ack`, per-child assurance is a **read**, not a richer write
+result: the consumer reads each child leaf's own state capability (echo-back —
+e.g. each AIO's `battery.mode`/status) and compares it to the intent. Those
+reads are already in the topology, so the spec **enables** verification without
+mandating that a black-box coordinator provide per-child acks it cannot give.
+Doing the comparison — and deciding how long to wait, how many retries — is the
+orchestration layer's job, the same layer that arbitrates ownership (§6). This
+mirrors "exposed, not enforced": the data contract says what feedback exists and
+where the echo-back reads are; it does not run the check.
 
 **Arbitration between independent controllers is out of scope** — it is a runtime/orchestration concern, not a device-description one (a data contract describes capabilities; it does not hold a cross-writer lock, just as OpenAPI describes an API without managing concurrent callers). When an external controller (a VPP dispatch, a manual override) holds a device for a window, the component that runs both controllers arbitrates — using `ownedNodes` to see which subtree each plan governs and to defer or refuse before they race. Claim-state, claim transfer/expiry, and the refuse-on-conflict decision live in that orchestration layer, which this spec **enables** (via `ownedNodes`) but does not implement.
 
@@ -165,8 +203,9 @@ A provider declares its tier per function. Consumers know whether control is por
 - **Solax battery (cloud):** class `battery`; control group `{mode, target_soc, *_power_limit}` → one `soc_target_control_mode` call; shape `schedule`/`setpoint` inside a group; Level 2.
 - **EV charger:** class `ev_charger`; `charge_current_limit` (setpoint) + `state` (switch); Level 1/2 per API.
 - **Immersion / relay:** class `switch`; `state{on,off}` (switch); Level 1.
-- **GivEnergy EMS / multi-AIO gateway (aggregate, §5):** a coordinator node exposing the `battery` vocabulary; **delegated** strategy — "charge all" sends one command, firmware drives the AIOs. Claims ownership of its inverter subtree.
+- **GivEnergy EMS / multi-AIO gateway (aggregate, §5):** a coordinator node exposing the `battery` vocabulary; **delegated** strategy — "charge all" sends one command, firmware drives the AIOs. Claims ownership of its inverter subtree. `feedback: ack` — the EMS returns one acceptance; a consumer that needs per-AIO confirmation reads each AIO's `battery.mode` echo-back (§6).
 - **Mixed fleet with no coordinator (aggregate, §5):** a virtual "site batteries" node; **expanded** strategy — the hub issues one direct `battery.mode` command per leaf.
+- **Partial coverage (aggregate, §5):** an EMS coordinates AIOs `{A,B,C}`; a consumer targets `{A,B}` plus a standalone inverter `X`. With `partialAddressing: true`, resolution sends the EMS one delegated command for `{A,B}` and hub-expands `X` — a **hybrid** plan (EMS owns `{A,B}`, hub owns `{X}`). With `partialAddressing: false` (black box), it hub-expands `{A,B}` as leaves when each is independently controllable, else **refuses** (`UNREACHABLE_PARTIAL`) — widen to `{A,B,C}` or drop `X`.
 
 ---
 
@@ -188,6 +227,6 @@ The planner emits **intent**, not register pokes: for a target node (a leaf, or 
 2a. The **scheme vocabulary** itself — **DECIDED (v1, adopted now):** the set in §3.x (`self_use`, `max_self_use`, `force_charge`, `export`, `idle`, `backup`, `eco`) is in effect; `battery.mode` stays an open string so it extends via `x-<vendor>:` without a schema change. Maintainer review (and whether schemes carry intensity/parameters — "max self-use" vs "self-use") is a later refinement, not a blocker.
 3. Vocabulary governance — namespacing, versioning, how a new device class is added.
 4. Whether `target_soc` "by time T" (deadline semantics) is a distinct intent from a schedule slot.
-5. Aggregate semantics when a coordinator only *partially* covers a target set — command the coordinator for its part + hub-expand the rest, or drop wholly to leaves?
-6. Does a delegated aggregate need per-child *feedback* (did every AIO take the command), or is the coordinator's single ack sufficient?
-7. Ownership lifecycle — how claims are acquired/released/expired, and how an external owner (VPP) advertises and hands back a claim.
+5. ~~Aggregate semantics when a coordinator only *partially* covers a target set~~ — **DECIDED (capability-driven hybrid):** the coordinator declares `aggregate.partialAddressing`. `true` → one delegated command scoped to the covered children + cover the rest by the same rule (hybrid plan); `false` (default, true black box) → hub-expand its overlapped leaves when each is independently controllable, else refuse (`UNREACHABLE_PARTIAL`). See §5 (`resolve_control`) and the §8 partial-coverage example; ownership union in §6.
+6. ~~Does a delegated aggregate need per-child *feedback*~~ — **DECIDED (single ack + echo-back verify):** the op's result is the coordinator's one ack ("accepted", not "every child applied"); a control offer declares `feedback: ack|perChild` (default `ack`). Per-child assurance is a read of each child leaf's echo-back state, which the topology already exposes — enabled, not mandated. See §6 "Command results & verification".
+7. Ownership lifecycle — how claims are acquired/released/expired, and how an external owner (VPP) advertises and hands back a claim. (Runtime/orchestration — §6 scopes cross-controller arbitration out of this data contract.)
