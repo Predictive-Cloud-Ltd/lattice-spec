@@ -33,8 +33,9 @@ export function layoutGraph<T extends Node>(
       return { ...n, position: { x: pos.x - dim.width / 2, y: pos.y - dim.height / 2 } };
     });
   } catch (err) {
-    // Never break the canvas over a layout failure — fitView still renders.
-    console.warn("dagre layout failed; falling back to unpositioned nodes", err);
-    return nodes.map((n) => ({ ...n, position: { x: 0, y: 0 } }));
+    // Never break the canvas over a layout failure — keep whatever positions the
+    // caller already had rather than collapsing every node onto the origin.
+    console.warn("dagre layout failed; keeping existing node positions", err);
+    return nodes;
   }
 }

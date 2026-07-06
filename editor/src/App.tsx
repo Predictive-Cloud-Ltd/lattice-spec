@@ -54,8 +54,11 @@ export default function App() {
   const nodes = Array.isArray(doc?.nodes) ? doc!.nodes : [];
 
   // Selection survives only while the node still exists in the doc.
+  // Compare against the stringified id: React Flow node ids are always strings
+  // (inspector-model coerces String(n.id)), so a doc with a numeric id would
+  // otherwise never match and the detail panel would never open.
   const selectedNode = useMemo(
-    () => nodes.find((n: any) => n?.id === selectedId) ?? null,
+    () => nodes.find((n: any) => String(n?.id) === selectedId) ?? null,
     [nodes, selectedId],
   );
 

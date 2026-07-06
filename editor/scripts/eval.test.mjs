@@ -52,3 +52,16 @@ test("missing input sample returns undefined", () => {
 test("undeclared capability falls back to the raw sample", () => {
   assert.equal(evalNodeCapability(node, "not.declared", { "not.declared": 7 }), 7);
 });
+
+test("non-numeric sample on a read declines to evaluate (no leaked string)", () => {
+  assert.equal(evalNodeCapability(node, "pv.power", { "pv.power": "oops" }), undefined);
+});
+
+test("non-numeric sample in a derived input yields undefined, not NaN", () => {
+  const v = evalNodeCapability(node, "meter.load_power", {
+    "pv.power": "oops",
+    "meter.grid_power": -1200,
+    "battery.power": 800,
+  });
+  assert.equal(v, undefined);
+});

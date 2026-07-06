@@ -86,8 +86,8 @@ export function NodeDetailGraph({ node, nodeSamples }: NodeDetailGraphProps) {
       {detail.controls.length > 0 && (
         <div className="lg-controls">
           <div className="section">Writable controls</div>
-          {detail.controls.map((c) => (
-            <div key={c.capability} className="lg-control">
+          {detail.controls.map((c, i) => (
+            <div key={`${c.capability}-${i}`} className="lg-control">
               <span className="lg-muted">✎</span>
               <span>{c.capability}</span>
               <span className="lg-detail">{c.detail}</span>
