@@ -16,6 +16,11 @@ header {
 header .brand { font-weight: 800; letter-spacing: -0.01em; }
 header .right { margin-left: auto; color: var(--accent); text-decoration: none; }
 header .right:hover { text-decoration: underline; }
+header .headright { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+header .headright a { color: var(--accent); text-decoration: none; }
+header .headright a:hover { text-decoration: underline; }
+header .share { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+header .share:hover { border-color: var(--accent); color: var(--accent); }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 

@@ -8,10 +8,40 @@ import { DEFAULT_SAMPLES_TEXT } from "./graph/example-samples";
 import { Resolver } from "./Resolver";
 import { Merge } from "./Merge";
 import { Discover } from "./Discover";
+import { buildShareUrl, decodeDoc, docFromHash } from "./share-link";
 
 export default function App() {
   const [mode, setMode] = useState<"editor" | "merge" | "discover">("editor");
   const [text, setText] = useState<string>(JSON.stringify(example, null, 2));
+  const [shareLabel, setShareLabel] = useState<string>("Share");
+
+  // On first load, if the URL carries a shared document (#doc=…), decode it into
+  // the editor so a permalink reopens the same doc. A malformed link falls back
+  // silently to the default example rather than blanking the editor.
+  useEffect(() => {
+    const payload = docFromHash(window.location.hash);
+    if (!payload) return;
+    let cancelled = false;
+    decodeDoc(payload)
+      .then((doc) => { if (!cancelled) setText(doc); })
+      .catch((e) => console.warn("Ignoring malformed share link:", e));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Encode the current doc into the URL hash and copy the link to the clipboard.
+  // replaceState keeps it out of history; the hash means the doc never leaves
+  // the browser.
+  async function handleShare() {
+    try {
+      const url = await buildShareUrl(text, window.location);
+      window.history.replaceState(null, "", url);
+      await navigator.clipboard?.writeText(url);
+      setShareLabel(url.length > 8000 ? "Copied (large link)" : "Copied ✓");
+    } catch {
+      setShareLabel("Copy failed");
+    }
+    window.setTimeout(() => setShareLabel("Share"), 2000);
+  }
 
   const [samplesText, setSamplesText] = useState<string>(DEFAULT_SAMPLES_TEXT);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -79,7 +109,11 @@ export default function App() {
           <button className={mode === "merge" ? "on" : ""} onClick={() => setMode("merge")}>Merge</button>
           <button className={mode === "discover" ? "on" : ""} onClick={() => setMode("discover")}>Discover</button>
         </div>
-        <a className="right" href="https://lattice-spec.org" target="_blank" rel="noreferrer">lattice-spec.org →</a>
+        <div className="headright">
+          <button className="share" data-testid="share-link" onClick={handleShare}
+            title="Copy a link that reopens the editor with this document">{shareLabel}</button>
+          <a href="https://lattice-spec.org" target="_blank" rel="noreferrer">lattice-spec.org →</a>
+        </div>
       </header>
 
       {mode === "merge" ? (
