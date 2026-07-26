@@ -1,0 +1,145 @@
+[
+  {
+    "name": "schedule: typed plan preserves zero and false",
+    "doc": {
+      "topologyVersion": "0.3.0",
+      "scope": "site",
+      "docVersion": 7,
+      "producer": { "name": "gateway", "provider": "predbat-gateway" },
+      "nodes": [{
+        "id": "GW-1",
+        "kind": "gateway",
+        "accessPaths": [{ "id": "local", "provider": "predbat-gateway" }],
+        "capabilities": [{
+          "capability": "battery.mode",
+          "ref": 11,
+          "accessPath": "local",
+          "shape": "schedule",
+          "tier": 1,
+          "scheduleSpec": {
+            "maxSlots": 2,
+            "slotFields": ["target_soc", "charge_power_limit", "enable"],
+            "requiresDefaultMode": true
+          },
+          "control": { "protocol": "modbus", "address": "schedule" }
+        }]
+      }]
+    },
+    "control": {
+      "command_id": "cmd-1",
+      "doc_version": 7,
+      "cap_ref": 11,
+      "schedule_intent": {
+        "default_mode": "self_use",
+        "slots": [{
+          "start_hhmm": 30,
+          "end_hhmm": 430,
+          "mode": "force_charge",
+          "target_soc": 90,
+          "charge_power_limit": 0,
+          "enable": false
+        }]
+      }
+    }
+  },
+  {
+    "name": "schedule: legacy field 5 is rejected",
+    "doc": {
+      "topologyVersion": "0.3.0",
+      "scope": "site",
+      "docVersion": 7,
+      "producer": { "name": "gateway", "provider": "predbat-gateway" },
+      "nodes": [{
+        "id": "GW-1",
+        "kind": "gateway",
+        "accessPaths": [{ "id": "local", "provider": "predbat-gateway" }],
+        "capabilities": [{
+          "capability": "battery.mode",
+          "ref": 11,
+          "accessPath": "local",
+          "shape": "schedule",
+          "tier": 1,
+          "scheduleSpec": { "maxSlots": 2 },
+          "control": { "protocol": "modbus", "address": "schedule" }
+        }]
+      }]
+    },
+    "control": {
+      "command_id": "cmd-2",
+      "doc_version": 7,
+      "cap_ref": 11,
+      "schedule": { "slots": [{ "start_hhmm": 30, "end_hhmm": 430, "value": 90 }] }
+    }
+  },
+  {
+    "name": "schedule: old decoder unknown field is a no-op",
+    "doc": {
+      "topologyVersion": "0.3.0",
+      "scope": "site",
+      "docVersion": 7,
+      "producer": { "name": "gateway", "provider": "predbat-gateway" },
+      "nodes": [{
+        "id": "GW-1",
+        "kind": "gateway",
+        "accessPaths": [{ "id": "local", "provider": "predbat-gateway" }],
+        "capabilities": [{
+          "capability": "battery.mode",
+          "ref": 11,
+          "accessPath": "local",
+          "shape": "schedule",
+          "tier": 1,
+          "scheduleSpec": { "maxSlots": 2 },
+          "control": { "protocol": "modbus", "address": "schedule" }
+        }]
+      }]
+    },
+    "control": { "command_id": "cmd-3", "doc_version": 7, "cap_ref": 11 }
+  },
+  {
+    "name": "schedule: invalid plan is rejected atomically",
+    "doc": {
+      "topologyVersion": "0.3.0",
+      "scope": "site",
+      "docVersion": 7,
+      "producer": { "name": "gateway", "provider": "predbat-gateway" },
+      "nodes": [{
+        "id": "GW-1",
+        "kind": "gateway",
+        "accessPaths": [{ "id": "local", "provider": "predbat-gateway" }],
+        "capabilities": [
+          {
+            "capability": "battery.mode",
+            "ref": 11,
+            "accessPath": "local",
+            "shape": "schedule",
+            "tier": 1,
+            "scheduleSpec": {
+              "maxSlots": 1,
+              "slotFields": ["target_soc"],
+              "requiresDefaultMode": true
+            },
+            "control": { "protocol": "modbus", "address": "schedule" }
+          },
+          {
+            "capability": "battery.target_soc",
+            "ref": 12,
+            "accessPath": "local",
+            "constraints": { "min": 0, "max": 100 },
+            "read": { "protocol": "modbus", "address": 60 }
+          }
+        ]
+      }]
+    },
+    "control": {
+      "command_id": "cmd-4",
+      "doc_version": 7,
+      "cap_ref": 11,
+      "schedule_intent": {
+        "slots": [
+          { "start_hhmm": 900, "end_hhmm": 1100, "mode": "force_charge", "target_soc": 101 },
+          { "start_hhmm": 1000, "end_hhmm": 1200, "mode": "" }
+        ]
+      }
+    }
+  }
+]

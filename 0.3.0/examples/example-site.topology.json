@@ -1,0 +1,233 @@
+{
+  "$schema": "../topology-capability-doc.schema.json",
+  "topologyVersion": "0.3.0",
+  "docVersion": 9,
+  "id": "site:example-home",
+  "scope": "site",
+  "producer": { "name": "Example consumer (merged from a local gateway + a vendor cloud)", "provider": "example-cloud" },
+
+  "deviceTypes": [
+    { "key": "example-gateway",         "fingerprint": { "serialPrefix": "GW-" } },
+    { "key": "example-hybrid-inverter", "fingerprint": { "serialPrefix": "INV-" } },
+    { "key": "example-evse",            "fingerprint": { "serialPrefix": "EVSE-" } },
+    { "key": "example-meter",           "fingerprint": { "serialPrefix": "MTR-" } },
+    { "key": "example-heat-pump",       "fingerprint": { "serialPrefix": "HP-" } },
+    { "key": "example-fox-inverter",    "fingerprint": { "serialPrefix": "FOX-" } }
+  ],
+
+  "nodes": [
+    {
+      "id": "GW-0001",
+      "kind": "gateway",
+      "deviceType": "example-gateway",
+      "attributes": { "ratedW": 10000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "aggregate": { "serves": true, "minChildren": 2, "priority": 10, "over": "contains", "partialAddressing": true },
+      "capabilities": [
+        {
+          "capability": "meter.grid_power", "ref": 1, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 100, "encoding": "i16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "pv.power", "ref": 3, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 101, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.power", "ref": 4, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 102, "encoding": "i16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "meter.load_power", "ref": 5, "unit": "W",
+          "derived": { "op": "sum", "inputs": [
+            { "ref": "pv.power", "weight": 1 },
+            { "ref": "meter.grid_power", "weight": -1 },
+            { "ref": "battery.power", "weight": -1 }
+          ] }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 2, "accessPath": "gw-local", "unit": "W",
+          "shape": "setpoint", "tier": 1, "feedback": "ack",
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "distribution": "replicate",
+          "control": { "protocol": "modbus", "op": "write_single", "address": 90, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
+        }
+      ]
+    },
+    {
+      "id": "INV-0001",
+      "kind": "inverter",
+      "deviceType": "example-hybrid-inverter",
+      "attributes": { "phase": 1, "ratedW": 5000, "capacityWh": 10000 },
+      "parameters": { "rated_power": 5000, "capacity": { "source": "battery.capacity" } },
+      "accessPaths": [
+        { "id": "gw-local",     "provider": "local-gateway", "locality": "local", "transport": "modbus",    "preference": 10 },
+        { "id": "vendor-cloud", "provider": "example-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 1 }
+      ],
+      "capabilities": [
+        {
+          "capability": "battery.soc", "ref": 10, "accessPath": "gw-local", "unit": "%",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 60, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.capacity", "ref": 11, "accessPath": "gw-local", "unit": "Wh",
+          "read": { "protocol": "modbus", "op": "read_holding", "address": 70, "encoding": "u32_hl", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "gw-local", "unit": "W",
+          "shape": "setpoint", "tier": 1,
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "read":    { "protocol": "modbus", "op": "read_holding",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": { "ref": "rated_power" }, "den": 100 } },
+          "control": { "protocol": "modbus", "op": "write_single",  "address": 80, "encoding": "u16", "transform": { "kind": "ratio", "num": { "ref": "rated_power" }, "den": 100, "round": "half_up", "max": 100, "onRefUnavailable": "max" } }
+        },
+        {
+          "capability": "battery.target_soc", "ref": 13, "accessPath": "gw-local", "unit": "%",
+          "shape": "setpoint", "tier": 1,
+          "constraints": { "min": 0, "max": 100, "scope": "capability" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 82, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.mode", "ref": 16, "accessPath": "gw-local", "unit": "mode",
+          "shape": "schedule", "tier": 1,
+          "scheduleSpec": { "maxSlots": 10, "slotFields": ["target_soc", "reserve_soc", "charge_power_limit"], "endBound": "exclusive", "requiresDefaultMode": false },
+          "control": { "protocol": "modbus", "op": "write_multi", "address": 91, "count": 6, "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 12, "accessPath": "vendor-cloud", "unit": "W",
+          "shape": "setpoint", "tier": 2, "controlGroup": "cloud_plan", "groupSlot": { "field": "chargeDischargPower" },
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/soc-target-control", "transform": { "kind": "identity" }, "readModifyWrite": true }
+        },
+        {
+          "capability": "battery.target_soc", "ref": 13, "accessPath": "vendor-cloud", "unit": "%",
+          "shape": "setpoint", "tier": 2, "controlGroup": "cloud_plan", "groupSlot": { "field": "targetSoc" },
+          "constraints": { "min": 0, "max": 100, "scope": "capability" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/v1/inverters/{id}/soc-target-control", "transform": { "kind": "identity" }, "readModifyWrite": true }
+        }
+      ]
+    },
+    {
+      "id": "INV-0002",
+      "kind": "inverter",
+      "deviceType": "example-hybrid-inverter",
+      "attributes": { "phase": 2, "ratedW": 5000, "capacityWh": 10000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "battery.soc", "ref": 14, "accessPath": "gw-local", "unit": "%",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 61, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 15, "accessPath": "gw-local", "unit": "W",
+          "shape": "setpoint", "tier": 1,
+          "constraints": { "min": 0, "max": "rated", "scope": "node" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 81, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 81, "encoding": "u16", "transform": { "kind": "ratio", "num": 10, "den": 1 } }
+        }
+      ]
+    },
+    {
+      "id": "EVSE-0001",
+      "kind": "ev_charger",
+      "deviceType": "example-evse",
+      "accessPaths": [
+        { "id": "ocpp", "provider": "example-cloud", "locality": "cloud", "transport": "ocpp", "preference": 5 }
+      ],
+      "capabilities": [
+        {
+          "capability": "ev_charger.power", "ref": 20, "accessPath": "ocpp", "unit": "W",
+          "read": { "protocol": "ocpp", "op": "get", "address": "MeterValues/Power.Active.Import", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "ev_charger.charge_current_limit", "ref": 21, "accessPath": "ocpp", "unit": "A",
+          "shape": "setpoint", "tier": 1,
+          "constraints": { "min": 0, "max": 32, "scope": "node" },
+          "control": { "protocol": "ocpp", "op": "post", "address": "SetChargingProfile", "transform": { "kind": "identity" } }
+        }
+      ]
+    },
+    {
+      "id": "MTR-0001",
+      "kind": "meter",
+      "deviceType": "example-meter",
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "meter.grid_voltage", "ref": 30, "accessPath": "gw-local", "unit": "V",
+          "reducer": "representative", "groupBy": "phase",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 200, "count": 3, "encoding": "u16_vec", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
+        }
+      ]
+    },
+    {
+      "id": "HP-0001",
+      "kind": "heat_pump",
+      "deviceType": "example-heat-pump",
+      "attributes": { "phase": 1, "ratedW": 3000 },
+      "accessPaths": [
+        { "id": "gw-local", "provider": "local-gateway", "locality": "local", "transport": "modbus", "preference": 10 }
+      ],
+      "capabilities": [
+        {
+          "capability": "thermal.temperature", "ref": 40, "accessPath": "gw-local", "unit": "degC",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 300, "encoding": "i16", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
+        },
+        {
+          "capability": "thermal.power", "ref": 41, "accessPath": "gw-local", "unit": "W",
+          "read": { "protocol": "modbus", "op": "read_input", "address": 302, "encoding": "u16", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "thermal.setpoint", "ref": 42, "accessPath": "gw-local", "unit": "degC",
+          "shape": "setpoint", "tier": 1,
+          "constraints": { "min": 15, "max": 60, "scope": "capability" },
+          "read":    { "protocol": "modbus", "op": "read_holding", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } },
+          "control": { "protocol": "modbus", "op": "write_single", "address": 304, "encoding": "u16", "transform": { "kind": "ratio", "num": 1, "den": 10 } }
+        }
+      ]
+    },
+    {
+      "id": "FOX-0001",
+      "kind": "inverter",
+      "deviceType": "example-fox-inverter",
+      "attributes": { "ratedW": 5000, "capacityWh": 10000 },
+      "accessPaths": [
+        { "id": "fox-cloud", "provider": "fox-cloud", "locality": "cloud", "transport": "cloud-api", "preference": 5 }
+      ],
+      "capabilities": [
+        {
+          "capability": "battery.soc", "ref": 50, "accessPath": "fox-cloud", "unit": "%",
+          "read": { "protocol": "cloud-api", "op": "get", "address": "/op/v0/device/real/query#SoC", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.power_limit_max", "ref": 52, "accessPath": "fox-cloud", "unit": "W",
+          "read": { "protocol": "cloud-api", "op": "get", "address": "/op/v0/device/scheduler/get/flag#properties.fdpwr.range.max", "transform": { "kind": "identity" } }
+        },
+        {
+          "capability": "battery.charge_power_limit", "ref": 53, "accessPath": "fox-cloud", "unit": "W",
+          "shape": "setpoint", "tier": 2,
+          "constraints": { "min": 0, "max": { "source": "battery.power_limit_max" }, "scope": "node" },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/op/v0/device/setting/set#fdpwr", "transform": { "kind": "identity" }, "readModifyWrite": true }
+        },
+        {
+          "capability": "battery.mode", "ref": 51, "accessPath": "fox-cloud", "unit": "mode",
+          "shape": "schedule", "tier": 2,
+          "scheduleSpec": { "maxSlots": 8, "slotFields": ["target_soc", "reserve_soc", "charge_power_limit", "enable"], "endBound": "inclusive", "requiresDefaultMode": true },
+          "control": { "protocol": "cloud-api", "op": "post", "address": "/op/v1/device/scheduler/enable", "transform": { "kind": "identity" }, "readModifyWrite": true }
+        }
+      ]
+    }
+  ],
+
+  "relationships": [
+    { "from": "GW-0001",  "to": "INV-0001", "type": "contains" },
+    { "from": "GW-0001",  "to": "INV-0002", "type": "contains" },
+    { "from": "GW-0001",  "to": "HP-0001",  "type": "contains" },
+    { "from": "MTR-0001", "to": "GW-0001",  "type": "measures" }
+  ]
+}

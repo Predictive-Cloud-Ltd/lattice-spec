@@ -1,0 +1,68 @@
+{
+  "result: applied scalar is a valid terminal result": {
+    "ok": true,
+    "errors": []
+  },
+  "result: unspecified is rejected": {
+    "ok": false,
+    "errors": ["result must be APPLIED, NOT_APPLIED, or UNKNOWN"]
+  },
+  "result: not applied is a valid terminal result": {
+    "ok": true,
+    "errors": []
+  },
+  "result: unknown is valid and cannot claim verification": {
+    "ok": true,
+    "errors": []
+  },
+  "result: duplicate command replays without a second execution": {
+    "executor_calls": 1,
+    "results": [
+      {
+        "ack": {
+          "command_id": "cmd-3",
+          "ok": true,
+          "error": "",
+          "result": "APPLIED",
+          "completed_ts_ms": 1000
+        },
+        "replayed": false,
+        "fingerprintConflict": false
+      },
+      {
+        "ack": {
+          "command_id": "cmd-3",
+          "ok": true,
+          "error": "",
+          "result": "APPLIED",
+          "completed_ts_ms": 1000
+        },
+        "replayed": true,
+        "fingerprintConflict": false
+      }
+    ]
+  },
+  "result: lost ack is recovered after durable restart": {
+    "executor_calls": 1,
+    "results": [
+      {
+        "ack": {
+          "command_id": "cmd-4",
+          "ok": false,
+          "error": "write completion could not be determined",
+          "result": "UNKNOWN",
+          "completed_ts_ms": 1000
+        },
+        "replayed": false,
+        "fingerprintConflict": false
+      },
+      {
+        "command_id": "cmd-4",
+        "ok": false,
+        "error": "write completion could not be determined",
+        "result": "UNKNOWN",
+        "completed_ts_ms": 1000
+      }
+    ]
+  }
+}

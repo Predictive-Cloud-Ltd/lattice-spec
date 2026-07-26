@@ -7,6 +7,39 @@ is versioned by **directory** — each frozen version lives in its own
 worked example. Versioning follows the `topologyVersion` major-match rule: a
 consumer accepts any document whose major version it understands.
 
+## [0.3.0] — 2026-07-26
+
+Additive schedule-intent data-plane release. The frozen `0.2.0/` artifacts are
+unchanged.
+
+### Added
+
+- `Control.schedule_intent` at oneof field 6, carrying a typed, atomic
+  `ScheduleIntent`.
+- Presence-aware optional schedule refinements for target/reserve SoC,
+  charge/discharge power limits, and enable, plus `default_mode`.
+- A language-neutral control conformance corpus and TypeScript reference
+  validator covering stale refs, legacy rejection, presence, and atomic
+  validation.
+- Machine-readable `ControlResult` outcomes on the legacy-compatible
+  `ControlAck`, including optional applied scalar, verification flag, completion
+  timestamp, and a result-query message.
+- Bounded durable result replay keyed by `command_id`, pinning duplicate
+  idempotency and lost-ack recovery in a second control-result corpus.
+
+### Deprecated
+
+- `Control.schedule` field 5 and its ambiguous integer `Slot.value`. New
+  executors reject it unless an explicit capability-specific migration adapter
+  supplies its meaning.
+
+### Compatibility
+
+- The change is protobuf-additive. An old decoder ignores field 6 and sees an
+  unset payload, which must be a nack/no-op.
+- Senders use field 6 only for a `shape:"schedule"` offer from a retained
+  `topologyVersion >= 0.3.0` document.
+
 ## [0.2.0] — 2026-06-29
 
 First **frozen** release. `0.1.0` was the pre-freeze working draft and was never
@@ -70,4 +103,5 @@ separate `0.1.0/` artifact — `0.2.0/` supersedes it.
 
 Pre-freeze working draft. Superseded by 0.2.0; not published as a stable artifact.
 
+[0.3.0]: https://github.com/Predictive-Cloud-Ltd/lattice-spec/tree/main/0.3.0
 [0.2.0]: https://github.com/Predictive-Cloud-Ltd/lattice-spec/tree/main/0.2.0

@@ -1,8 +1,7 @@
 # Lattice conformance corpus
 
-Language-neutral golden fixtures that pin **resolution behaviour** — how a consumer turns
-a query (`capability` + `side`) against a Lattice document into a concrete plan (which node,
-which access path, which binding, clamped how, delegated to whom).
+Language-neutral golden fixtures that pin **control validation, resolution,
+merge, and transform behaviour** across independent implementations.
 
 The spec prose says *what* a resolver must do. This corpus says it *exactly*, as data, so the
 independent reference implementations — the editor's TypeScript resolver, the gateway's C++
@@ -13,11 +12,38 @@ results. "Similar implementation" only means "interoperable" if it's pinned to t
 
 ```
 conformance/
+  control/
+    cases.json      # schedule envelopes + documents
+    expected.json   # accepted plan or complete rejection
+  control-result/
+    cases.json      # terminal ACK + durable replay scenarios
+    expected.json   # validity / exact replay outcomes
   resolve/
     cases.json      # inputs: an array of { name, query, doc }
     expected.json   # golden outputs: { [case.name]: <observable result> }
   README.md         # this file
 ```
+
+## control/ — schedule-envelope conformance
+
+Pins the v0.3 `Control.schedule_intent` boundary before any device write:
+typed/presence-aware refinements, default mode, document/ref checks, legacy
+field-5 rejection, and atomic validation. A failed result never contains
+`plan`; this is the portable guarantee that no valid prefix of an invalid
+schedule may execute.
+
+The reference is `editor/src/control-engine.ts`; run it with:
+
+```bash
+cd editor
+npm run test:control
+```
+
+## control-result/ — terminal outcome and replay conformance
+
+Pins the APPLIED / NOT_APPLIED / UNKNOWN distinction, rejects UNSPECIFIED, and
+proves that a duplicate command or post-restart lost-ack lookup returns the
+original terminal result without invoking the executor again.
 
 ## The case format (`resolve/cases.json`)
 

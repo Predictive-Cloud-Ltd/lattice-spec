@@ -1,0 +1,99 @@
+[
+  {
+    "name": "result: applied scalar is a valid terminal result",
+    "kind": "validate",
+    "ack": {
+      "command_id": "cmd-1",
+      "ok": true,
+      "error": "",
+      "result": "APPLIED",
+      "applied_scalar": { "i": 5000 },
+      "verified": false,
+      "completed_ts_ms": 1000
+    }
+  },
+  {
+    "name": "result: unspecified is rejected",
+    "kind": "validate",
+    "ack": {
+      "command_id": "cmd-2",
+      "ok": false,
+      "error": "missing terminal result",
+      "result": "UNSPECIFIED",
+      "completed_ts_ms": 1000
+    }
+  },
+  {
+    "name": "result: not applied is a valid terminal result",
+    "kind": "validate",
+    "ack": {
+      "command_id": "cmd-not-applied",
+      "ok": false,
+      "error": "stale doc_version",
+      "result": "NOT_APPLIED",
+      "completed_ts_ms": 1000
+    }
+  },
+  {
+    "name": "result: unknown is valid and cannot claim verification",
+    "kind": "validate",
+    "ack": {
+      "command_id": "cmd-unknown",
+      "ok": false,
+      "error": "write completion could not be determined",
+      "result": "UNKNOWN",
+      "verified": false,
+      "completed_ts_ms": 1000
+    }
+  },
+  {
+    "name": "result: duplicate command replays without a second execution",
+    "kind": "journal",
+    "operations": [
+      {
+        "op": "execute",
+        "now_ms": 1000,
+        "fingerprint": "sha256:same",
+        "ack": {
+          "command_id": "cmd-3",
+          "ok": true,
+          "error": "",
+          "result": "APPLIED",
+          "completed_ts_ms": 1000
+        }
+      },
+      {
+        "op": "execute",
+        "now_ms": 1100,
+        "fingerprint": "sha256:same",
+        "ack": {
+          "command_id": "cmd-3",
+          "ok": false,
+          "error": "must never execute",
+          "result": "NOT_APPLIED",
+          "completed_ts_ms": 1100
+        }
+      }
+    ]
+  },
+  {
+    "name": "result: lost ack is recovered after durable restart",
+    "kind": "journal",
+    "operations": [
+      {
+        "op": "execute",
+        "now_ms": 1000,
+        "fingerprint": "sha256:request",
+        "ack": {
+          "command_id": "cmd-4",
+          "ok": false,
+          "error": "write completion could not be determined",
+          "result": "UNKNOWN",
+          "completed_ts_ms": 1000
+        }
+      },
+      { "op": "restart", "now_ms": 1200 },
+      { "op": "lookup", "command_id": "cmd-4", "now_ms": 1300 }
+    ]
+  }
+]
