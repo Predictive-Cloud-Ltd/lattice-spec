@@ -126,6 +126,11 @@ and fallback classification; UNKNOWN quarantines the exact control scope across
 reboot. APPLIED carries a bounded digest/count/verification receipt and at most
 eight clamp details, never a full-plan echo.
 
+An APPLIED plan is not cancelled by admission-lease expiry. Keep competing
+scalar/legacy writers suppressed through the schedule validity interval unless
+an explicitly authorized replacement/cancellation is atomically accepted.
+`NATIVE` and `CONTROLLER_STEPPED` schedules follow the same rule.
+
 Executors persist a bounded result journal before publishing an ack. Duplicate
 commands and `…/result/get/<command_id>` queries replay the original result
 without executing the binding. The reference journal uses a 1,024-entry,

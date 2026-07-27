@@ -134,6 +134,20 @@ Rules:
    replay. `APPLIED`/`NOT_APPLIED` completion releases the in-flight slot;
    `UNKNOWN` retains it under quarantine until positive reconciliation.
 
+Lease expiry controls admission of new commands; it does not retroactively
+cancel an already `APPLIED` schedule or prove that its target-visible effects
+stopped. An applied `NATIVE` or `CONTROLLER_STEPPED` plan remains authoritative
+until its exclusive `valid_until_ts_ms` or an explicit, atomically accepted
+replacement/cancellation. The two execution modes have the same ownership
+semantics even though one stores the plan in the target and the other stores it
+in the receiver.
+
+A newly authorized owner may atomically supersede the installed plan. It must
+not write through a scalar/legacy path in parallel merely because the previous
+admission lease expired. Senders that require execution to stop with a lease
+must bound `valid_until_ts_ms` by that lease expiry or send an explicit
+replacement/cancellation before handoff.
+
 The reference TypeScript state machine and fencing corpus pin these rules.
 
 ## 6. UNKNOWN quarantine
