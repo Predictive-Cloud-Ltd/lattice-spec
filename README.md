@@ -2,9 +2,9 @@
 
 **An open standard for describing device topology & capability — "OpenAPI for energy devices."**
 
-[![spec](https://img.shields.io/badge/spec-v0.3.0-blue)](spec/) [![licence](https://img.shields.io/badge/licence-CC--BY--4.0%20%2F%20Apache--2.0-green)](LICENSE.md)
+[![spec](https://img.shields.io/badge/spec-v0.4.0-blue)](spec/) [![licence](https://img.shields.io/badge/licence-CC--BY--4.0%20%2F%20Apache--2.0-green)](LICENSE.md)
 
-> **Status:** v0.3.0. Frozen release directories are immutable; `0.2.0/` remains available for existing adopters. See [`CHANGELOG.md`](CHANGELOG.md). Canonical home: **https://lattice-spec.org**. The name *Lattice* is provisional pending a trademark check. Incubated within [PredBat](https://predbat.com); intended for donation to a neutral foundation (LF Energy / Eclipse Foundation) once external adopters exist.
+> **Status:** v0.4.0. Frozen release directories are immutable; `0.2.0/` and `0.3.0/` remain available for existing adopters. See [`CHANGELOG.md`](CHANGELOG.md). Canonical home: **https://lattice-spec.org**. The name *Lattice* is provisional pending a trademark check. Incubated within [PredBat](https://predbat.com); intended for donation to a neutral foundation (LF Energy / Eclipse Foundation) once external adopters exist.
 
 ## What it is
 
@@ -19,12 +19,13 @@ Just as a web API ships an `openapi.json` and any client talks to it without bes
 - **Bindings** — the concrete "how" (protocol / address / encoding / scaling), reachable via one or more **ranked access paths** with fallback (local gateway *or* manufacturer cloud).
 - **Data plane** — protobuf telemetry + high-level control intents over MQTT, *typed by* the document (a `cap_ref` codec; aligns with Eclipse Sparkplug B).
 
-## Normative artifacts (v0.3.0)
+## Normative artifacts (v0.4.0)
 
-- **Meta-schema** (JSON Schema 2020-12): [`0.3.0/topology-capability-doc.schema.json`](0.3.0/topology-capability-doc.schema.json) — canonical `$id`: `https://lattice-spec.org/0.3.0/topology-capability-doc.schema.json`
-- **Data plane** (protobuf): [`0.3.0/topology-data-plane.proto`](0.3.0/topology-data-plane.proto)
-- **Worked example** (vendor-neutral; validates against the schema): [`0.3.0/examples/example-site.topology.json`](0.3.0/examples/example-site.topology.json)
-- **Conformance corpora** (language-neutral golden tests): [`conformance/control/`](conformance/control/), [`conformance/merge/`](conformance/merge/), [`conformance/resolve/`](conformance/resolve/), and [`conformance/transform/`](conformance/transform/)
+- **Meta-schema** (JSON Schema 2020-12): [`0.4.0/topology-capability-doc.schema.json`](0.4.0/topology-capability-doc.schema.json) — canonical `$id`: `https://lattice-spec.org/0.4.0/topology-capability-doc.schema.json`
+- **Data plane** (protobuf): [`0.4.0/topology-data-plane.proto`](0.4.0/topology-data-plane.proto)
+- **Worked example** (vendor-neutral; validates against the schema): [`0.4.0/examples/example-site.topology.json`](0.4.0/examples/example-site.topology.json)
+- **Schedule/fencing semantics**: [`spec/2026-07-27-calendar-correct-schedules-and-fencing.md`](spec/2026-07-27-calendar-correct-schedules-and-fencing.md)
+- **Conformance corpora** (language-neutral golden tests): [`conformance/schedule-v0.4/`](conformance/schedule-v0.4/), [`conformance/control/`](conformance/control/), [`conformance/control-result/`](conformance/control-result/), [`conformance/merge/`](conformance/merge/), [`conformance/resolve/`](conformance/resolve/), and [`conformance/transform/`](conformance/transform/)
 
 ## Implementing
 
