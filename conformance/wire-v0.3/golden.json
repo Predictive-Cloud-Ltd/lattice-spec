@@ -1,0 +1,24 @@
+{
+  "profile": "lattice-v0.3-frozen-wire",
+  "source_proto_sha256": "52ff26e7a4043cb5874d912912b500c1fa081fb3f0607302d7443accb607001e",
+  "messages": [
+    {
+      "name": "scalar-control",
+      "message": "Control",
+      "text": "command_id:\"golden-scalar\" doc_version:7 cap_ref:3 scalar { i:-42 }\n",
+      "base64": "Cg1nb2xkZW4tc2NhbGFyEAcYAyICCFM="
+    },
+    {
+      "name": "schedule-intent-control",
+      "message": "Control",
+      "text": "command_id:\"golden-schedule\" doc_version:7 cap_ref:9 schedule_intent { default_mode:\"self_use\" slots { start_hhmm:2300 end_hhmm:300 mode:\"force_charge\" target_soc:90 enable:false } }\n",
+      "base64": "Cg9nb2xkZW4tc2NoZWR1bGUQBxgJMisKHwj8ERCsAhoMZm9yY2VfY2hhcmdlIQAAAAAAgFZAQAASCHNlbGZfdXNl"
+    },
+    {
+      "name": "applied-scalar-ack",
+      "message": "ControlAck",
+      "text": "command_id:\"golden-ack\" ok:true result:CONTROL_RESULT_APPLIED applied_scalar { i:-42 } verified:true completed_ts_ms:1700000000000\n",
+      "base64": "Cgpnb2xkZW4tYWNrEAEgASoCCFMwATiA0JX/vDE="
+    }
+  ]
+}

@@ -54,12 +54,15 @@
               "hold"
             ],
             "gapPolicy": "DEFAULT_MODE",
-            "executionModes": [
-              "NATIVE",
-              "CONTROLLER_STEPPED"
-            ],
-            "leaseRequired": true,
-            "resultMaxClamps": 8,
+              "executionModes": [
+                "NATIVE",
+                "CONTROLLER_STEPPED"
+              ],
+              "leaseRequired": true,
+              "transitionEnvelope": "atomic_replace_cancel",
+              "cancellationGuard": "expected_plan_digest",
+              "writerExclusionRelease": "applied_ending_transition",
+              "resultMaxClamps": 8,
             "endBound": "exclusive"
           },
           "control": {

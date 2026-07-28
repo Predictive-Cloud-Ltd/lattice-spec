@@ -25,7 +25,7 @@ Just as a web API ships an `openapi.json` and any client talks to it without bes
 - **Data plane** (protobuf): [`0.4.0/topology-data-plane.proto`](0.4.0/topology-data-plane.proto)
 - **Worked example** (vendor-neutral; validates against the schema): [`0.4.0/examples/example-site.topology.json`](0.4.0/examples/example-site.topology.json)
 - **Schedule/fencing semantics**: [`spec/2026-07-27-calendar-correct-schedules-and-fencing.md`](spec/2026-07-27-calendar-correct-schedules-and-fencing.md)
-- **Conformance corpora** (language-neutral golden tests): [`conformance/schedule-v0.4/`](conformance/schedule-v0.4/), [`conformance/control/`](conformance/control/), [`conformance/control-result/`](conformance/control-result/), [`conformance/merge/`](conformance/merge/), [`conformance/resolve/`](conformance/resolve/), and [`conformance/transform/`](conformance/transform/)
+- **Conformance corpora** (language-neutral golden tests): [`conformance/schedule-v0.4/`](conformance/schedule-v0.4/), frozen [`conformance/wire-v0.3/`](conformance/wire-v0.3/), [`conformance/control/`](conformance/control/), [`conformance/control-result/`](conformance/control-result/), [`conformance/merge/`](conformance/merge/), [`conformance/resolve/`](conformance/resolve/), and [`conformance/transform/`](conformance/transform/)
 
 ## Implementing
 

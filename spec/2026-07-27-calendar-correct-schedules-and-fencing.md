@@ -2,22 +2,24 @@
 
 Status: **normative for the `0.4.0/` artifacts**.
 
-This document defines the runtime semantics of
-`Control.absolute_schedule_intent` (field 7), controller fencing, structured
+This document defines the runtime semantics of the explicit
+`Control.schedule_transition` (field 10), the replacement-only early-v0.4
+`absolute_schedule_intent` (field 7), controller fencing, structured
 rejections, and schedule application results. It supersedes the local-HHMM
 schedule semantics for senders and receivers that advertise Lattice 0.4. The
 frozen 0.2 and 0.3 contracts remain unchanged.
 
 The v0.4 fencing profile is deliberately **schedule-only**. `controller` and
-`lease` are required with `absolute_schedule_intent`; their presence does not
+`lease` are required with field 7 or field 10; their presence does not
 retroactively change scalar, legacy field-5, or v0.3 field-6 behavior. A future
 version may generalize the same envelope to other payloads.
 
 ## 1. Compatibility boundary
 
-- A sender uses field 7 only against a retained `topologyVersion: "0.4.0"`
-  schedule offer.
-- A v0.3 decoder does not know field 7. It therefore sees the `Control.payload`
+- A sender uses field 10 only against a retained `topologyVersion: "0.4.0"`
+  schedule offer declaring `transitionEnvelope: "atomic_replace_cancel"`.
+  Field 7 remains replacement-only for early-v0.4 peers.
+- A v0.3 decoder does not know field 7 or field 10. It therefore sees the `Control.payload`
   oneof as unset and must nack/no-op. It must not guess a legacy field-5 or
   field-6 schedule.
 - Fields 1–6 of `Control` and fields 1–7 of `ControlAck` retain their v0.3
@@ -28,7 +30,12 @@ version may generalize the same envelope to other payloads.
 
 ## 2. Temporal model
 
-An `AbsoluteScheduleIntent` is a one-shot complete replacement plan.
+An `AbsoluteScheduleIntent` is a one-shot complete replacement plan. The
+preferred field-10 envelope contains exactly one `replacement` or
+`cancellation`; both or neither is malformed. Cancellation carries the exact
+32-byte digest of the currently installed receiver-canonical plan. This
+compare-and-cancel rule prevents a delayed ending command from removing a
+newer replacement.
 
 - `valid_from_ts_ms` is inclusive.
 - `valid_until_ts_ms` is exclusive and must be greater than
@@ -67,6 +74,9 @@ Every 0.4 schedule offer declares:
 - `gapPolicy: "DEFAULT_MODE" | "REJECT"`;
 - one or both `executionModes`;
 - `leaseRequired: true`;
+- `transitionEnvelope: "atomic_replace_cancel"`;
+- `cancellationGuard: "expected_plan_digest"`;
+- `writerExclusionRelease: "applied_ending_transition"`;
 - a finite `maxSlots` and accepted `slotFields`.
 
 Both slot `mode` and `default_mode` must occur in `supportedModes`.
@@ -97,12 +107,48 @@ There is deliberately no priority integer in `Control`. A client cannot gain
 authority by writing a larger number or a more privileged class into the
 message.
 
+### 4.1 Authenticated-origin transport profile
+
+Trusted context is out-of-band metadata, never another client-writable field:
+
+- MQTT uses broker-authenticated connection/session metadata, such as a client
+  certificate or broker credential mapped to a deployment principal.
+- HTTPS uses the server-side authenticated session or mutually authenticated
+  peer mapping.
+- Local IPC uses operating-system peer credentials mapped by the receiver.
+
+MQTT user properties, publisher-supplied topic components, public-client HTTP
+headers, query/body fields, and `ControllerContext` itself are untrusted
+claims. A trusted ingress may inject metadata only after stripping the
+corresponding public input. The receiver constructs `{profile, session_id,
+principal_id, policy_controller_class, policy_priority}` from the trusted
+channel and requires the payload claim to match. Missing or mixed-trust
+metadata fails closed before lease admission.
+
 ## 5. Lease and fencing state machine
 
-The receiver derives a canonical control scope from the resolved capability
-offer and exact owned target set. It compares that value with
+The receiver derives a canonical control scope from the pinned document,
+resolved capability, selected altitude, and exact owned target set. It compares that value with
 `LeaseFence.scope_id`; clients cannot narrow or change scope to evade
 ownership.
+
+The language-neutral serialization is UTF-8:
+
+```text
+lattice-schedule-scope-v1\n
+doc_version:<uint32 decimal>\n
+cap_ref:<uint32 decimal>\n
+altitude:<aggregate|leaves>\n
+owned_node_count:<decimal>\n
+owned_node:<UTF-8 byte length>:<node id>\n   # once per node
+```
+
+`auto` is not serializable: resolution must already have selected an altitude.
+Node ids remain byte-exact (no Unicode normalization), are non-empty and
+control-character-free, and are sorted lexicographically by unsigned UTF-8
+bytes. Duplicates reject. `scope_id` is unpadded base64url of SHA-256 over the
+complete serialization, hence exactly 43 ASCII bytes. The conformance corpus
+pins both serialization and digest vectors.
 
 Per canonical scope, durable receiver state contains:
 
@@ -134,19 +180,39 @@ Rules:
    replay. `APPLIED`/`NOT_APPLIED` completion releases the in-flight slot;
    `UNKNOWN` retains it under quarantine until positive reconciliation.
 
+`command_id` has one immutable receiver-global namespace spanning scalar,
+legacy schedule, absolute replacement, and cancellation. Before scope
+admission, the receiver durably binds it to payload domain, canonical scope,
+and SHA-256 of the **exact received Control protobuf bytes**. The same tuple is
+a replay; any changed bytes, domain, or scope are `COMMAND_ID_COLLISION` and
+`BLOCKED`. The binding lives at least as long as the durable result journal and
+survives power loss. Protobuf-equivalent but byte-different encodings are
+conservatively different requests, so senders replay the original bytes.
+
 Lease expiry controls admission of new commands; it does not retroactively
 cancel an already `APPLIED` schedule or prove that its target-visible effects
 stopped. An applied `NATIVE` or `CONTROLLER_STEPPED` plan remains authoritative
-until its exclusive `valid_until_ts_ms` or an explicit, atomically accepted
-replacement/cancellation. The two execution modes have the same ownership
-semantics even though one stores the plan in the target and the other stores it
-in the receiver.
+through its exclusive `valid_until_ts_ms` and until its ending transition is
+definitely `APPLIED`, or until an explicit atomically accepted
+replacement/cancellation. Cross-domain writer exclusion is durable state.
+Crossing the clock boundary, lease expiry, restart, or power loss is not proof
+that a native target or the controller's last boundary write stopped. The two
+execution modes have the same ownership semantics.
 
-A newly authorized owner may atomically supersede the installed plan. It must
-not write through a scalar/legacy path in parallel merely because the previous
+A newly authorized owner may atomically supersede the installed plan. A
+replacement keeps exclusion continuously held while changing installed plan
+identity. An `APPLIED` conditional cancellation releases it. A `NOT_APPLIED`
+ending transition retains the prior plan/exclusion; `UNKNOWN` retains both plus
+quarantine until reconciliation. The receiver must not write through a
+scalar/legacy path in parallel merely because the previous
 admission lease expired. Senders that require execution to stop with a lease
 must bound `valid_until_ts_ms` by that lease expiry or send an explicit
 replacement/cancellation before handoff.
+
+On restore, a pending cancellation is valid only when an installed plan exists
+and its digest exactly matches `expected_plan_digest`; any orphan or mismatch
+is corrupt durable state and fails closed. UNKNOWN pending state and its
+quarantine timestamp must also be present or absent together.
 
 The reference TypeScript state machine and fencing corpus pin these rules.
 
@@ -186,6 +252,10 @@ quarantine rejections are `BLOCKED`.
 Every `UNKNOWN` is `EXECUTION_AMBIGUOUS`, `BLOCKED`, and identifies the
 quarantined scope.
 
+Command-id collisions, absent installed plans, plan-digest mismatches, and
+unconfirmed authority release are also `BLOCKED`; none authorizes scalar,
+legacy, or alternate-provider fallback.
+
 ## 8. Applied schedule and verification
 
 An `APPLIED` schedule ACK carries an `AppliedSchedule` receipt instead of
@@ -213,6 +283,19 @@ The legacy `ControlAck.verified` bit is true exactly for the two readback
 levels. `APPLIED` requires durable acceptance. If durable acceptance cannot be
 proved, the result is not `APPLIED`.
 
+An `APPLIED` cancellation carries `AppliedScheduleCancellation`: the exact
+cancelled plan digest, `writer_exclusion_released: true`, and either
+`DURABLE_STORE_READBACK` or `NATIVE_TARGET_READBACK`. `ACCEPTED_ONLY` cannot
+prove the ending transition and cannot release authority. `NOT_APPLIED` and
+`UNKNOWN` never carry this receipt.
+
+The authority state machine accepts a structured terminal outcome, not a bare
+result enum. `APPLIED` replacement includes matching durable-acceptance
+evidence. `APPLIED` cancellation includes the verified receipt above and its
+digest must match both the pending cancellation and installed plan. A bare or
+mismatching `APPLIED` value leaves authority held and is an internal contract
+violation.
+
 ## 9. Embedded profile
 
 The normative embedded profile pins:
@@ -227,25 +310,34 @@ The normative embedded profile pins:
 - 160-byte legacy error and 96-byte structured detail;
 - exactly 32 digest bytes.
 
-The protobuf compatibility test builds maximum-profile messages, records their
+The protobuf compatibility test builds maximum-profile field-10 replacement
+and cancellation-receipt messages, records their
 encoded sizes, and enforces a 1024-byte maximum for both `Control` and
 `ControlAck`. Implementations may negotiate smaller offer limits but must not
 silently truncate input schedules.
+
+Implementations generate/use the v0.4 codec as a distinct versioned artifact.
+They do not add field 10 to a generated v0.3 type or select a codec from
+untrusted incoming bytes alone. The retained topology version selects the
+codec before decode. The frozen v0.3 proto hash and representative scalar,
+field-6 schedule, and ACK bytes are pinned in
+`conformance/wire-v0.3/golden.json`.
 
 ## 10. Conformance order
 
 A receiver performs these gates before target-visible work:
 
-1. Decode and enforce embedded bounds.
-2. Match document and schedule offer.
-3. Validate the complete absolute plan.
-4. Verify authenticated controller context.
-5. Derive and match canonical scope.
-6. Admit the durable lease/fence state.
-7. Stage, persist, and verify the complete plan.
-8. Atomically promote/install it.
-9. Persist terminal result and any UNKNOWN quarantine.
-10. Publish ACK.
+1. Select the v0.4 codec from the retained document, decode, and enforce bounds.
+2. Match the pinned document and schedule offer.
+3. Derive canonical scope and immutably claim the global command id.
+4. Validate the complete replacement or guarded cancellation.
+5. Verify authenticated broker/session metadata against payload claims.
+6. Match scope and admit the durable lease/fence state.
+7. Stage, persist, and verify the complete transition.
+8. Atomically promote/install/clear it while retaining writer exclusion.
+9. Persist authority state, terminal result, and any UNKNOWN quarantine.
+10. Release writer exclusion only for a definitely APPLIED ending transition.
+11. Publish ACK.
 
 Failures before target-visible work are `NOT_APPLIED`. A definite execution
 failure is `NOT_APPLIED` only after verified rollback. Any ambiguity is

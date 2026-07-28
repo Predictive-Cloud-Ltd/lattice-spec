@@ -21,6 +21,23 @@ export type AbsoluteScheduleIntent = {
   execution: ScheduleExecution;
 };
 
+export type ScheduleCancellationReason =
+  | "VALIDITY_END"
+  | "SUPERSEDED"
+  | "OPERATOR"
+  | "SAFETY";
+
+export type ScheduleCancellation = {
+  // Lowercase hex in the JSON/TypeScript reference; the protobuf field is
+  // exactly the corresponding 32 raw bytes.
+  expected_plan_digest: string;
+  reason: ScheduleCancellationReason;
+};
+
+export type ScheduleTransition =
+  | { replacement: AbsoluteScheduleIntent; cancellation?: never }
+  | { replacement?: never; cancellation: ScheduleCancellation };
+
 export type ControllerContext = {
   origin_id: string;
   controller_class: ControllerClass;
@@ -38,6 +55,7 @@ export type AbsoluteScheduleControl = {
   doc_version?: number;
   cap_ref?: number;
   absolute_schedule_intent?: AbsoluteScheduleIntent;
+  schedule_transition?: ScheduleTransition;
   controller?: ControllerContext;
   lease?: LeaseFence;
 };
@@ -55,6 +73,10 @@ export type RejectionReason =
   | "SCOPE_MISMATCH"
   | "SCOPE_QUARANTINED"
   | "SCOPE_BUSY"
+  | "COMMAND_ID_COLLISION"
+  | "NO_ACTIVE_SCHEDULE"
+  | "PLAN_DIGEST_MISMATCH"
+  | "AUTHORITY_RELEASE_UNCONFIRMED"
   | "INTERNAL";
 
 export type FallbackSafety = "SAFE" | "BLOCKED";
@@ -71,6 +93,28 @@ export type ScheduleValidation = {
   errors: string[];
   rejection?: Rejection;
   plan?: AbsoluteScheduleIntent;
+  transition?: ScheduleTransition;
+};
+
+export type ScheduleScopeInput = {
+  doc_version: number;
+  cap_ref: number;
+  // "auto" is intentionally excluded: scope is derived only after resolution.
+  altitude: "aggregate" | "leaves";
+  owned_node_ids: string[];
+};
+
+export type TrustedTransportProfile = "MQTT_BROKER" | "HTTPS_SESSION" | "LOCAL_IPC";
+
+// This object is constructed exclusively from broker/session metadata and
+// deployment-local policy. It is not decoded from Control bytes.
+export type AuthenticatedTransportContext = {
+  authenticated: true;
+  profile: TrustedTransportProfile;
+  session_id: string;
+  principal_id: string;
+  policy_controller_class: ControllerClass;
+  policy_priority: number;
 };
 
 const SLOT_FIELDS = [
@@ -88,6 +132,8 @@ const MAX_TEXT = {
   origin_id: 36,
   lease_id: 36,
   scope_id: 47,
+  session_id: 96,
+  node_id: 255,
 } as const;
 
 const hasOwn = (value: object, key: PropertyKey) =>
@@ -95,6 +141,84 @@ const hasOwn = (value: object, key: PropertyKey) =>
 
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
+}
+
+function compareUtf8(left: string, right: string): number {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return a.length - b.length;
+}
+
+export function canonicalScheduleScopeSerialization(input: ScheduleScopeInput): string {
+  if (
+    !Number.isInteger(input.doc_version) ||
+    input.doc_version <= 0 ||
+    input.doc_version > 0xffffffff
+  ) {
+    throw new Error("scope doc_version must be a positive uint32");
+  }
+  if (!Number.isInteger(input.cap_ref) || input.cap_ref <= 0 || input.cap_ref > 0xffffffff) {
+    throw new Error("scope cap_ref must be a positive uint32");
+  }
+  if (!["aggregate", "leaves"].includes(input.altitude)) {
+    throw new Error("scope altitude must be resolved to aggregate or leaves");
+  }
+  if (!Array.isArray(input.owned_node_ids) || input.owned_node_ids.length === 0) {
+    throw new Error("scope owned_node_ids must be a non-empty exact set");
+  }
+
+  const owned = [...input.owned_node_ids];
+  for (const nodeId of owned) {
+    if (
+      typeof nodeId !== "string" ||
+      nodeId.length === 0 ||
+      byteLength(nodeId) > MAX_TEXT.node_id ||
+      /[\u0000-\u001f\u007f]/u.test(nodeId)
+    ) {
+      throw new Error("scope owned node id is empty, unbounded, or contains control bytes");
+    }
+  }
+  owned.sort(compareUtf8);
+  if (owned.some((nodeId, index) => index > 0 && nodeId === owned[index - 1])) {
+    throw new Error("scope owned_node_ids must not contain duplicates");
+  }
+
+  const lines = [
+    "lattice-schedule-scope-v1",
+    `doc_version:${input.doc_version}`,
+    `cap_ref:${input.cap_ref}`,
+    `altitude:${input.altitude}`,
+    `owned_node_count:${owned.length}`,
+    ...owned.map((nodeId) => `owned_node:${byteLength(nodeId)}:${nodeId}`),
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+function base64Url(bytes: Uint8Array): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  let output = "";
+  for (let index = 0; index < bytes.length; index += 3) {
+    const a = bytes[index];
+    const b = index + 1 < bytes.length ? bytes[index + 1] : 0;
+    const c = index + 2 < bytes.length ? bytes[index + 2] : 0;
+    const word = (a << 16) | (b << 8) | c;
+    output += alphabet[(word >>> 18) & 63];
+    output += alphabet[(word >>> 12) & 63];
+    if (index + 1 < bytes.length) output += alphabet[(word >>> 6) & 63];
+    if (index + 2 < bytes.length) output += alphabet[word & 63];
+  }
+  return output;
+}
+
+export async function deriveCanonicalScheduleScopeId(
+  input: ScheduleScopeInput,
+): Promise<string> {
+  const serialized = new TextEncoder().encode(canonicalScheduleScopeSerialization(input));
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", serialized);
+  return base64Url(new Uint8Array(digest));
 }
 
 function boundedText(
@@ -343,10 +467,92 @@ export function validateAbsoluteScheduleControl(
   );
 }
 
-export type AuthenticatedController = ControllerContext & {
-  // Deployment-local policy. This value is never accepted from Control bytes.
-  priority: number;
-};
+// Validates the preferred field-10 envelope. Field 7 remains available through
+// validateAbsoluteScheduleControl for replacement-only early-v0.4 peers.
+export function validateScheduleTransitionControl(
+  doc: any,
+  control: AbsoluteScheduleControl,
+  nowMs: number,
+): ScheduleValidation {
+  const errors: string[] = [];
+  if (!control || typeof control !== "object") {
+    return rejected(["control must be an object"], "MALFORMED");
+  }
+  boundedText(control.command_id, "command_id", MAX_TEXT.command_id, errors);
+  if (!Number.isInteger(control.doc_version) || control.doc_version !== doc?.docVersion) {
+    return rejected([...errors, "stale doc_version"], "STALE_DOCUMENT");
+  }
+  if (!Number.isInteger(control.cap_ref)) errors.push("cap_ref is required");
+  if (!hasOwn(control, "schedule_transition")) {
+    errors.push("control must contain schedule_transition field 10");
+  }
+  if (hasOwn(control, "absolute_schedule_intent")) {
+    errors.push("field 7 and field 10 schedule payloads are mutually exclusive");
+  }
+  if (errors.length) return rejected(errors, "MALFORMED");
+
+  const transition = control.schedule_transition as Partial<ScheduleTransition>;
+  if (!transition || typeof transition !== "object") {
+    return rejected(["schedule_transition must be an object"], "MALFORMED");
+  }
+  const hasReplacement = hasOwn(transition, "replacement");
+  const hasCancellation = hasOwn(transition, "cancellation");
+  if (hasReplacement === hasCancellation) {
+    return rejected(
+      ["schedule_transition must contain exactly one replacement or cancellation"],
+      "MALFORMED",
+    );
+  }
+
+  const matches = scheduleOffersForRef(doc, control.cap_ref!);
+  if (matches.length !== 1) {
+    return rejected(["cap_ref does not identify exactly one schedule control offer"], "UNSUPPORTED_OFFER");
+  }
+  const spec = matches[0].offer?.scheduleSpec ?? {};
+  if (
+    spec.transitionEnvelope !== "atomic_replace_cancel" ||
+    spec.cancellationGuard !== "expected_plan_digest" ||
+    spec.writerExclusionRelease !== "applied_ending_transition"
+  ) {
+    return rejected(["schedule offer does not declare the complete v0.4 transition profile"], "UNSUPPORTED_OFFER");
+  }
+
+  if (hasReplacement) {
+    const validated = validateAbsoluteScheduleIntent(
+      matches[0].node,
+      matches[0].offer,
+      transition.replacement,
+      nowMs,
+    );
+    return validated.ok
+      ? {
+          ok: true,
+          errors: [],
+          plan: validated.plan,
+          transition: { replacement: structuredClone(validated.plan!) },
+        }
+      : validated;
+  }
+
+  const cancellation = transition.cancellation as Partial<ScheduleCancellation>;
+  if (
+    !cancellation ||
+    typeof cancellation !== "object" ||
+    typeof cancellation.expected_plan_digest !== "string" ||
+    !/^[0-9a-f]{64}$/.test(cancellation.expected_plan_digest)
+  ) {
+    errors.push("cancellation expected_plan_digest must be 32-byte SHA-256 lowercase hex");
+  }
+  if (!["VALIDITY_END", "SUPERSEDED", "OPERATOR", "SAFETY"].includes(String(cancellation?.reason))) {
+    errors.push("cancellation reason must be specified");
+  }
+  if (errors.length) return rejected(errors, "INVALID_SCHEDULE");
+  return {
+    ok: true,
+    errors: [],
+    transition: { cancellation: structuredClone(cancellation as ScheduleCancellation) },
+  };
+}
 
 type ActiveLease = LeaseFence & ControllerContext & { priority: number };
 type Quarantine = { command_id: string; since_ts_ms: number };
@@ -446,7 +652,7 @@ export class ScheduleFenceRegistry {
 
   admit(
     control: AbsoluteScheduleControl,
-    authenticated: AuthenticatedController,
+    authenticated: AuthenticatedTransportContext,
     canonicalScopeId: string,
     nowMs: number,
   ): FenceDecision {
@@ -460,8 +666,12 @@ export class ScheduleFenceRegistry {
     }
     if (
       !controller ||
-      controller.origin_id !== authenticated.origin_id ||
-      controller.controller_class !== authenticated.controller_class ||
+      authenticated?.authenticated !== true ||
+      !["MQTT_BROKER", "HTTPS_SESSION", "LOCAL_IPC"].includes(authenticated.profile) ||
+      !authenticated.session_id ||
+      byteLength(authenticated.session_id) > MAX_TEXT.session_id ||
+      controller.origin_id !== authenticated.principal_id ||
+      controller.controller_class !== authenticated.policy_controller_class ||
       !controller.origin_id ||
       byteLength(controller.origin_id) > MAX_TEXT.origin_id ||
       !["AUTOMATION", "MANUAL", "SAFETY", "GRID"].includes(controller.controller_class)
@@ -473,9 +683,9 @@ export class ScheduleFenceRegistry {
       );
     }
     if (
-      !Number.isSafeInteger(authenticated.priority) ||
-      authenticated.priority < 0 ||
-      authenticated.priority > 65535
+      !Number.isSafeInteger(authenticated.policy_priority) ||
+      authenticated.policy_priority < 0 ||
+      authenticated.policy_priority > 65535
     ) {
       return fenceRejected(
         "AUTHENTICATED_ORIGIN_MISMATCH",
@@ -535,8 +745,8 @@ export class ScheduleFenceRegistry {
     if (active && active.expires_ts_ms > nowMs) {
       const sameLease =
         active.lease_id === lease.lease_id &&
-        active.origin_id === authenticated.origin_id &&
-        active.controller_class === authenticated.controller_class;
+        active.origin_id === authenticated.principal_id &&
+        active.controller_class === authenticated.policy_controller_class;
       if (sameLease && lease.fencing_token === active.fencing_token) {
         if (lease.expires_ts_ms !== active.expires_ts_ms) {
           return fenceRejected(
@@ -552,7 +762,7 @@ export class ScheduleFenceRegistry {
       if (lease.fencing_token <= state.high_water_token) {
         return fenceRejected("STALE_FENCE", "fencing token is not newer than active lease", canonicalScopeId);
       }
-      if (!sameLease && authenticated.priority <= active.priority) {
+      if (!sameLease && authenticated.policy_priority <= active.priority) {
         return fenceRejected(
           "LEASE_CONFLICT",
           "active equal-or-higher priority controller owns scope",
@@ -564,7 +774,7 @@ export class ScheduleFenceRegistry {
       state.active = {
         ...structuredClone(lease),
         ...structuredClone(controller),
-        priority: authenticated.priority,
+        priority: authenticated.policy_priority,
       };
       state.admitted_command_id = control.command_id;
       this.scopes.set(canonicalScopeId, state);
@@ -583,7 +793,7 @@ export class ScheduleFenceRegistry {
     state.active = {
       ...structuredClone(lease),
       ...structuredClone(controller),
-      priority: authenticated.priority,
+      priority: authenticated.policy_priority,
     };
     state.admitted_command_id = control.command_id;
     this.scopes.set(canonicalScopeId, state);
@@ -640,7 +850,7 @@ export class ScheduleFenceRegistry {
   snapshot(): FenceSnapshot {
     return {
       scopes: structuredClone(
-        [...this.scopes.values()].sort((a, b) => a.scope_id.localeCompare(b.scope_id)),
+        [...this.scopes.values()].sort((a, b) => compareUtf8(a.scope_id, b.scope_id)),
       ),
     };
   }

@@ -24,13 +24,16 @@ test("the v0.4 calendar-correct worked example validates", () => {
   assert.equal(validate(example), true, JSON.stringify(validate.errors, null, 2));
 });
 
-test("every v0.4 schedule offer declares its temporal, mode, execution, and lease surface", () => {
+test("every v0.4 schedule offer declares temporal, execution, lease, and atomic transition surfaces", () => {
   for (const missing of [
     "timeBasis",
     "supportedModes",
     "gapPolicy",
     "executionModes",
     "leaseRequired",
+    "transitionEnvelope",
+    "cancellationGuard",
+    "writerExclusionRelease",
   ]) {
     const candidate = structuredClone(example);
     delete candidate.nodes[0].capabilities[0].scheduleSpec[missing];

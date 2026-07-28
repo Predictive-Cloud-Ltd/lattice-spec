@@ -36,6 +36,12 @@ export type AppliedSchedule = {
   valid_until_ts_ms: number;
 };
 
+export type AppliedScheduleCancellation = {
+  cancelled_plan_digest: string;
+  writer_exclusion_released: boolean;
+  verification: Exclude<ScheduleVerification, "ACCEPTED_ONLY">;
+};
+
 export type ControlRejection = {
   reason:
     | RejectionReason
@@ -61,6 +67,7 @@ export type ControlAckV04 = {
   applied_schedule?: AppliedSchedule;
   accepted_lease?: LeaseFence;
   controller?: ControllerContext;
+  applied_schedule_cancellation?: AppliedScheduleCancellation;
 };
 
 export type AckValidation = { ok: boolean; errors: string[] };
@@ -157,6 +164,24 @@ function validateAppliedSchedule(schedule: AppliedSchedule, errors: string[]): v
   }
 }
 
+function validateAppliedScheduleCancellation(
+  cancellation: AppliedScheduleCancellation,
+  errors: string[],
+): void {
+  if (
+    typeof cancellation.cancelled_plan_digest !== "string" ||
+    !/^[0-9a-f]{64}$/.test(cancellation.cancelled_plan_digest)
+  ) {
+    errors.push("applied_schedule_cancellation.cancelled_plan_digest must be 32-byte SHA-256 lowercase hex");
+  }
+  if (cancellation.writer_exclusion_released !== true) {
+    errors.push("APPLIED cancellation must confirm writer exclusion release");
+  }
+  if (!["DURABLE_STORE_READBACK", "NATIVE_TARGET_READBACK"].includes(cancellation.verification)) {
+    errors.push("APPLIED cancellation requires durable or native readback verification");
+  }
+}
+
 export function validateControlAckV04(ack: unknown): AckValidation {
   const errors: string[] = [];
   if (!ack || typeof ack !== "object") return { ok: false, errors: ["ack must be an object"] };
@@ -172,14 +197,24 @@ export function validateControlAckV04(ack: unknown): AckValidation {
 
   const hasScalar = value.applied_scalar != null;
   const hasSchedule = value.applied_schedule != null;
+  const hasCancellation = value.applied_schedule_cancellation != null;
   if (value.result === "APPLIED") {
     if (value.ok !== true) errors.push("legacy ok must be true for APPLIED");
     if (value.error !== "") errors.push("legacy error must be empty for APPLIED");
     if (value.rejection != null) errors.push("APPLIED must not carry rejection");
-    if (hasScalar === hasSchedule) errors.push("APPLIED must carry exactly one applied payload");
+    if (Number(hasScalar) + Number(hasSchedule) + Number(hasCancellation) !== 1) {
+      errors.push("APPLIED must carry exactly one applied scalar, replacement, or cancellation payload");
+    }
     if (hasSchedule) validateAppliedSchedule(value.applied_schedule!, errors);
-    if (hasSchedule && !value.accepted_lease) errors.push("APPLIED schedule must echo accepted_lease");
-    if (hasSchedule && !value.controller) errors.push("APPLIED schedule must echo controller");
+    if (hasCancellation) {
+      validateAppliedScheduleCancellation(value.applied_schedule_cancellation!, errors);
+    }
+    if ((hasSchedule || hasCancellation) && !value.accepted_lease) {
+      errors.push("APPLIED schedule transition must echo accepted_lease");
+    }
+    if ((hasSchedule || hasCancellation) && !value.controller) {
+      errors.push("APPLIED schedule transition must echo controller");
+    }
     if (hasSchedule) {
       const verification = value.applied_schedule!.verification;
       const shouldVerify = verification === "DURABLE_STORE_READBACK" || verification === "NATIVE_TARGET_READBACK";
@@ -187,12 +222,17 @@ export function validateControlAckV04(ack: unknown): AckValidation {
         errors.push("legacy verified must mirror schedule verification readback");
       }
     }
+    if (hasCancellation && value.verified !== true) {
+      errors.push("legacy verified must be true for definite schedule authority release");
+    }
   } else if (value.result === "NOT_APPLIED" || value.result === "UNKNOWN") {
     if (value.ok !== false) errors.push(`legacy ok must be false for ${value.result}`);
     if (typeof value.error !== "string" || value.error.length === 0) {
       errors.push(`legacy error is required for ${value.result}`);
     }
-    if (hasScalar || hasSchedule) errors.push(`${value.result} must not carry an applied payload`);
+    if (hasScalar || hasSchedule || hasCancellation) {
+      errors.push(`${value.result} must not carry an applied payload`);
+    }
     if (value.verified === true) errors.push(`verified is invalid for ${value.result}`);
     if (!value.rejection) {
       errors.push(`${value.result} requires structured rejection`);
@@ -231,6 +271,10 @@ export function validateControlAckV04(ack: unknown): AckValidation {
         "SCOPE_MISMATCH",
         "SCOPE_QUARANTINED",
         "SCOPE_BUSY",
+        "COMMAND_ID_COLLISION",
+        "NO_ACTIVE_SCHEDULE",
+        "PLAN_DIGEST_MISMATCH",
+        "AUTHORITY_RELEASE_UNCONFIRMED",
         "EXECUTION_AMBIGUOUS",
         "INTERNAL",
       ]);

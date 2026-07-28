@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,6 +74,59 @@ test("a v0.3 decoder sees field 7 as an unset payload and cannot execute it", { 
   assert.doesNotMatch(decoded, /schedule_intent \{/);
 });
 
+test("the v0.4-only codec sees explicit field-10 replacement while v0.3 must no-op", { skip: !protocAvailable }, () => {
+  const encoded = encodeV04(
+    "Control",
+    'command_id:"cmd-v04-transition" doc_version:12 cap_ref:41 ' +
+      "schedule_transition { replacement { valid_from_ts_ms:1785189600000 valid_until_ts_ms:1785207600000 " +
+      'diagnostic_timezone:"UTC" execution:SCHEDULE_EXECUTION_NATIVE ' +
+      'slots { start_ts_ms:1785189600000 end_ts_ms:1785207600000 mode:"self_use" } } } ' +
+      'controller { origin_id:"predbat" controller_class:CONTROLLER_CLASS_AUTOMATION } ' +
+      'lease { lease_id:"lease-a" scope_id:"WiL19AHtF1LTOmHspc211b9P_yYS7s1w77-EXnQZ9Ko" ' +
+      "fencing_token:11 expires_ts_ms:1785211200000 }\n",
+  );
+  const decodedV04 = protoc(
+    [
+      "--proto_path=0.4.0",
+      "--decode=predbat.topology.dataplane.v0.Control",
+      "topology-data-plane.proto",
+    ],
+    encoded,
+  ).toString();
+  const decodedV03 = protoc(
+    [
+      "--proto_path=0.3.0",
+      "--decode=predbat.topology.dataplane.v0.Control",
+      "topology-data-plane.proto",
+    ],
+    encoded,
+  ).toString();
+
+  assert.match(decodedV04, /schedule_transition \{/);
+  assert.match(decodedV04, /replacement \{/);
+  assert.doesNotMatch(decodedV03, /scalar \{|schedule \{|schedule_intent \{/);
+});
+
+test("frozen v0.3 schema hash and golden wire bytes cannot drift", { skip: !protocAvailable }, () => {
+  const fixture = JSON.parse(
+    readFileSync(resolve(repo, "conformance/wire-v0.3/golden.json"), "utf8"),
+  );
+  const proto = readFileSync(resolve(repo, "0.3.0/topology-data-plane.proto"));
+  assert.equal(createHash("sha256").update(proto).digest("hex"), fixture.source_proto_sha256);
+
+  for (const vector of fixture.messages) {
+    const encoded = protoc(
+      [
+        "--proto_path=0.3.0",
+        `--encode=predbat.topology.dataplane.v0.${vector.message}`,
+        "topology-data-plane.proto",
+      ],
+      Buffer.from(vector.text),
+    );
+    assert.equal(encoded.toString("base64"), vector.base64, vector.name);
+  }
+});
+
 test("a v0.3 decoder preserves terminal ACK fields and ignores v0.4 receipt fields", { skip: !protocAvailable }, () => {
   const encoded = encodeV04(
     "ControlAck",
@@ -142,4 +196,42 @@ test("embedded maximum control and ACK protobuf sizes are pinned", { skip: !prot
   assert.equal(ack.byteLength, 486);
   assert.ok(control.byteLength <= 1024);
   assert.ok(ack.byteLength <= 1024);
+});
+
+test("maximum explicit transition and cancellation receipt remain within embedded payload ceiling", { skip: !protocAvailable }, () => {
+  const commandId = "c".repeat(63);
+  const mode = "m".repeat(24);
+  const timezone = `Area/${"t".repeat(42)}`;
+  const origin = "o".repeat(36);
+  const leaseId = "l".repeat(36);
+  const scopeId = "s".repeat(43);
+  const slot =
+    `slots { start_ts_ms:1785189600000 end_ts_ms:1785193200000 mode:"${mode}" ` +
+    "target_soc:100 reserve_soc:100 charge_power_limit:6000 discharge_power_limit:6000 enable:true } ";
+  const replacement = encodeV04(
+    "Control",
+    `command_id:"${commandId}" doc_version:4294967295 cap_ref:4294967295 ` +
+      "schedule_transition { replacement { " +
+      slot.repeat(8) +
+      `default_mode:"${mode}" valid_from_ts_ms:1785189600000 valid_until_ts_ms:1785207600000 ` +
+      `diagnostic_timezone:"${timezone}" execution:SCHEDULE_EXECUTION_CONTROLLER_STEPPED } } ` +
+      `controller { origin_id:"${origin}" controller_class:CONTROLLER_CLASS_AUTOMATION } ` +
+      `lease { lease_id:"${leaseId}" scope_id:"${scopeId}" fencing_token:18446744073709551615 ` +
+      "expires_ts_ms:18446744073709551615 }\n",
+  );
+  const cancellation = encodeV04(
+    "ControlAck",
+    `command_id:"${commandId}" ok:true result:CONTROL_RESULT_APPLIED verified:true ` +
+      "completed_ts_ms:18446744073709551615 applied_schedule_cancellation { " +
+      'cancelled_plan_digest:"01234567890123456789012345678901" writer_exclusion_released:true ' +
+      "verification:SCHEDULE_VERIFICATION_NATIVE_TARGET_READBACK } " +
+      `accepted_lease { lease_id:"${leaseId}" scope_id:"${scopeId}" fencing_token:18446744073709551615 ` +
+      "expires_ts_ms:18446744073709551615 } " +
+      `controller { origin_id:"${origin}" controller_class:CONTROLLER_CLASS_AUTOMATION }\n`,
+  );
+
+  assert.equal(replacement.byteLength, 963);
+  assert.equal(cancellation.byteLength, 271);
+  assert.ok(replacement.byteLength <= 1024);
+  assert.ok(cancellation.byteLength <= 1024);
 });

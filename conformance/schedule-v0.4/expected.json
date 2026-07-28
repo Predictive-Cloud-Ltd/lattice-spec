@@ -251,7 +251,163 @@
       ]
     }
   },
+  "transition: explicit replacement is atomic and offer-gated": {
+    "ok": true,
+    "errors": [],
+    "plan": {
+      "valid_from_ts_ms": 1785189600000,
+      "valid_until_ts_ms": 1785196800000,
+      "diagnostic_timezone": "UTC",
+      "execution": "NATIVE",
+      "slots": [
+        {
+          "start_ts_ms": 1785189600000,
+          "end_ts_ms": 1785196800000,
+          "mode": "self_use"
+        }
+      ]
+    },
+    "transition": {
+      "replacement": {
+        "valid_from_ts_ms": 1785189600000,
+        "valid_until_ts_ms": 1785196800000,
+        "diagnostic_timezone": "UTC",
+        "execution": "NATIVE",
+        "slots": [
+          {
+            "start_ts_ms": 1785189600000,
+            "end_ts_ms": 1785196800000,
+            "mode": "self_use"
+          }
+        ]
+      }
+    }
+  },
+  "transition: cancellation names the exact installed digest": {
+    "ok": true,
+    "errors": [],
+    "transition": {
+      "cancellation": {
+        "expected_plan_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "reason": "VALIDITY_END"
+      }
+    }
+  },
+  "scope: canonical UTF-8 ordering and SHA-256 base64url are pinned": {
+    "serialization": "lattice-schedule-scope-v1\ndoc_version:12\ncap_ref:41\naltitude:leaves\nowned_node_count:3\nowned_node:4:GW-1\nowned_node:9:battery-a\nowned_node:10:battery-\u03b2\n",
+    "scope_id": "WiL19AHtF1LTOmHspc211b9P_yYS7s1w77-EXnQZ9Ko"
+  },
+  "identity: command ids are immutable across scalar and schedule domains": {
+    "results": [
+      {
+        "ok": true,
+        "replay": false,
+        "identity": {
+          "command_id": "cmd-global",
+          "domain": "SCALAR",
+          "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+        }
+      },
+      {
+        "restarted": true
+      },
+      {
+        "ok": true,
+        "replay": true,
+        "identity": {
+          "command_id": "cmd-global",
+          "domain": "SCALAR",
+          "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+        }
+      },
+      {
+        "ok": false,
+        "rejection": {
+          "reason": "COMMAND_ID_COLLISION",
+          "fallback": "BLOCKED",
+          "detail": "command_id is already bound to different immutable request bytes",
+          "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+        }
+      }
+    ],
+    "snapshot": {
+      "commands": [
+        {
+          "command_id": "cmd-global",
+          "domain": "SCALAR",
+          "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+        }
+      ]
+    }
+  },
+  "authority: power loss and clock expiry cannot release writer exclusion": {
+    "results": [
+      {
+        "ok": true,
+        "writer_excluded": true
+      },
+      {
+        "completed": "APPLIED",
+        "writer_excluded": true
+      },
+      {
+        "writer_excluded": true,
+        "ending_transition_required": true,
+        "installed": {
+          "command_id": "cmd-install",
+          "plan_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "valid_until_ts_ms": 5000,
+          "execution": "CONTROLLER_STEPPED"
+        }
+      },
+      {
+        "restarted": true
+      },
+      {
+        "ok": true,
+        "writer_excluded": true
+      },
+      {
+        "completed": "UNKNOWN",
+        "writer_excluded": true
+      },
+      {
+        "restarted": true
+      },
+      {
+        "reconciled": true,
+        "writer_excluded": true
+      },
+      {
+        "ok": true,
+        "writer_excluded": true
+      },
+      {
+        "completed": "APPLIED",
+        "writer_excluded": false
+      },
+      {
+        "writer_excluded": false,
+        "ending_transition_required": false,
+        "installed": null
+      }
+    ],
+    "snapshot": {
+      "scopes": [
+        {
+          "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+        }
+      ]
+    }
+  },
   "result: bounded applied schedule reports verification and clamps": {
+    "ok": true,
+    "errors": []
+  },
+  "result: applied cancellation proves authority release": {
     "ok": true,
     "errors": []
   },
