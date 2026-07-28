@@ -19,6 +19,9 @@
               "gapPolicy": "DEFAULT_MODE",
               "executionModes": ["NATIVE", "CONTROLLER_STEPPED"],
               "leaseRequired": true,
+              "transitionEnvelope": "atomic_replace_cancel",
+              "cancellationGuard": "expected_plan_digest",
+              "writerExclusionRelease": "applied_ending_transition",
               "resultMaxClamps": 8,
               "endBound": "exclusive"
             }
@@ -192,14 +195,14 @@
         {
           "op": "admit",
           "now_ms": 1000,
-          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "authenticated": { "authenticated": true, "profile": "MQTT_BROKER", "session_id": "broker-session-predbat", "principal_id": "predbat", "policy_controller_class": "AUTOMATION", "policy_priority": 10 },
           "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
           "lease": { "lease_id": "lease-a", "scope_id": "site:GW-1:battery.mode", "fencing_token": 10, "expires_ts_ms": 5000 }
         },
         {
           "op": "admit",
           "now_ms": 1500,
-          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "authenticated": { "authenticated": true, "profile": "MQTT_BROKER", "session_id": "broker-session-predbat", "principal_id": "predbat", "policy_controller_class": "AUTOMATION", "policy_priority": 10 },
           "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
           "lease": { "lease_id": "lease-a", "scope_id": "site:GW-1:battery.mode", "fencing_token": 11, "expires_ts_ms": 6000 }
         },
@@ -212,14 +215,14 @@
         {
           "op": "admit",
           "now_ms": 1600,
-          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "authenticated": { "authenticated": true, "profile": "MQTT_BROKER", "session_id": "broker-session-predbat", "principal_id": "predbat", "policy_controller_class": "AUTOMATION", "policy_priority": 10 },
           "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
           "lease": { "lease_id": "lease-a", "scope_id": "site:GW-1:battery.mode", "fencing_token": 10, "expires_ts_ms": 5000 }
         },
         {
           "op": "admit",
           "now_ms": 1700,
-          "authenticated": { "origin_id": "peer", "controller_class": "AUTOMATION", "priority": 10 },
+          "authenticated": { "authenticated": true, "profile": "MQTT_BROKER", "session_id": "broker-session-peer", "principal_id": "peer", "policy_controller_class": "AUTOMATION", "policy_priority": 10 },
           "controller": { "origin_id": "peer", "controller_class": "AUTOMATION" },
           "lease": { "lease_id": "lease-peer", "scope_id": "site:GW-1:battery.mode", "fencing_token": 12, "expires_ts_ms": 7000 }
         },
@@ -227,7 +230,7 @@
           "op": "admit",
           "now_ms": 1800,
           "command_id": "cmd-ambiguous",
-          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "authenticated": { "authenticated": true, "profile": "HTTPS_SESSION", "session_id": "session-operator", "principal_id": "operator", "policy_controller_class": "MANUAL", "policy_priority": 20 },
           "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
           "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 7000 }
         },
@@ -240,7 +243,7 @@
         {
           "op": "admit",
           "now_ms": 2000,
-          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "authenticated": { "authenticated": true, "profile": "HTTPS_SESSION", "session_id": "session-operator", "principal_id": "operator", "policy_controller_class": "MANUAL", "policy_priority": 20 },
           "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
           "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 7000 }
         },
@@ -250,7 +253,7 @@
           "op": "admit",
           "now_ms": 2500,
           "command_id": "cmd-after-reconcile",
-          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "authenticated": { "authenticated": true, "profile": "HTTPS_SESSION", "session_id": "session-operator", "principal_id": "operator", "policy_controller_class": "MANUAL", "policy_priority": 20 },
           "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
           "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 7000 }
         },
@@ -264,7 +267,7 @@
           "op": "admit",
           "now_ms": 8000,
           "command_id": "cmd-lease-b",
-          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "authenticated": { "authenticated": true, "profile": "MQTT_BROKER", "session_id": "broker-session-predbat", "principal_id": "predbat", "policy_controller_class": "AUTOMATION", "policy_priority": 10 },
           "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
           "lease": { "lease_id": "lease-b", "scope_id": "site:GW-1:battery.mode", "fencing_token": 14, "expires_ts_ms": 9000 }
         },
@@ -278,10 +281,167 @@
         {
           "op": "admit",
           "now_ms": 8100,
-          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "authenticated": { "authenticated": true, "profile": "HTTPS_SESSION", "session_id": "session-operator", "principal_id": "operator", "policy_controller_class": "MANUAL", "policy_priority": 20 },
           "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
           "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 10000 }
         }
+      ]
+    },
+    {
+      "name": "transition: explicit replacement is atomic and offer-gated",
+      "kind": "transition",
+      "now_ms": 1785186000000,
+      "transition": {
+        "replacement": {
+          "valid_from_ts_ms": 1785189600000,
+          "valid_until_ts_ms": 1785196800000,
+          "diagnostic_timezone": "UTC",
+          "execution": "NATIVE",
+          "slots": [
+            {
+              "start_ts_ms": 1785189600000,
+              "end_ts_ms": 1785196800000,
+              "mode": "self_use"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "transition: cancellation names the exact installed digest",
+      "kind": "transition",
+      "now_ms": 1785186000000,
+      "transition": {
+        "cancellation": {
+          "expected_plan_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "reason": "VALIDITY_END"
+        }
+      }
+    },
+    {
+      "name": "scope: canonical UTF-8 ordering and SHA-256 base64url are pinned",
+      "kind": "scope",
+      "scope": {
+        "doc_version": 12,
+        "cap_ref": 41,
+        "altitude": "leaves",
+        "owned_node_ids": ["battery-\u03b2", "GW-1", "battery-a"]
+      }
+    },
+    {
+      "name": "identity: command ids are immutable across scalar and schedule domains",
+      "kind": "identity",
+      "operations": [
+        {
+          "op": "claim",
+          "identity": {
+            "command_id": "cmd-global",
+            "domain": "SCALAR",
+            "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+          }
+        },
+        { "op": "restart" },
+        {
+          "op": "claim",
+          "identity": {
+            "command_id": "cmd-global",
+            "domain": "SCALAR",
+            "request_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+          }
+        },
+        {
+          "op": "claim",
+          "identity": {
+            "command_id": "cmd-global",
+            "domain": "ABSOLUTE_SCHEDULE_REPLACEMENT",
+            "request_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg"
+          }
+        }
+      ]
+    },
+    {
+      "name": "authority: power loss and clock expiry cannot release writer exclusion",
+      "kind": "authority",
+      "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg",
+      "operations": [
+        {
+          "op": "begin",
+          "transition": {
+            "kind": "REPLACE",
+            "command_id": "cmd-install",
+            "plan_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "valid_until_ts_ms": 5000,
+            "execution": "CONTROLLER_STEPPED"
+          }
+        },
+        {
+          "op": "complete",
+          "command_id": "cmd-install",
+          "outcome": {
+            "result": "APPLIED",
+            "evidence": {
+              "kind": "REPLACEMENT",
+              "plan_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+              "durably_accepted": true
+            }
+          },
+          "completed_ts_ms": 1000
+        },
+        { "op": "check", "now_ms": 6000 },
+        { "op": "restart" },
+        {
+          "op": "begin",
+          "transition": {
+            "kind": "CANCEL",
+            "command_id": "cmd-end-unknown",
+            "cancellation": {
+              "expected_plan_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+              "reason": "VALIDITY_END"
+            }
+          }
+        },
+        {
+          "op": "complete",
+          "command_id": "cmd-end-unknown",
+          "outcome": { "result": "UNKNOWN" },
+          "completed_ts_ms": 6100
+        },
+        { "op": "restart" },
+        {
+          "op": "reconcile",
+          "command_id": "cmd-end-unknown",
+          "outcome": { "result": "NOT_APPLIED" },
+          "completed_ts_ms": 6200
+        },
+        {
+          "op": "begin",
+          "transition": {
+            "kind": "CANCEL",
+            "command_id": "cmd-end-applied",
+            "cancellation": {
+              "expected_plan_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+              "reason": "VALIDITY_END"
+            }
+          }
+        },
+        {
+          "op": "complete",
+          "command_id": "cmd-end-applied",
+          "outcome": {
+            "result": "APPLIED",
+            "evidence": {
+              "kind": "CANCELLATION",
+              "cancelled_plan_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+              "writer_exclusion_released": true,
+              "verification": "DURABLE_STORE_READBACK"
+            }
+          },
+          "completed_ts_ms": 6300
+        },
+        { "op": "check", "now_ms": 6400 }
       ]
     },
     {
@@ -310,6 +470,33 @@
         "accepted_lease": {
           "lease_id": "lease-a",
           "scope_id": "site:GW-1:battery.mode",
+          "fencing_token": 11,
+          "expires_ts_ms": 1785211200000
+        },
+        "controller": {
+          "origin_id": "predbat",
+          "controller_class": "AUTOMATION"
+        }
+      }
+    },
+    {
+      "name": "result: applied cancellation proves authority release",
+      "kind": "result",
+      "ack": {
+        "command_id": "cmd-cancelled",
+        "ok": true,
+        "error": "",
+        "result": "APPLIED",
+        "verified": true,
+        "completed_ts_ms": 1785189000000,
+        "applied_schedule_cancellation": {
+          "cancelled_plan_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "writer_exclusion_released": true,
+          "verification": "DURABLE_STORE_READBACK"
+        },
+        "accepted_lease": {
+          "lease_id": "lease-a",
+          "scope_id": "Y9DtNa7xO4upJYmPJQwBvw5Y1gl2vGWv9HNW-Jh4Ctg",
           "fencing_token": 11,
           "expires_ts_ms": 1785211200000
         },

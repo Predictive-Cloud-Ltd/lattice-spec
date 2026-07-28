@@ -31,13 +31,17 @@ message Control {
     Schedule schedule = 5 [deprecated = true];
     ScheduleIntent schedule_intent = 6;
     AbsoluteScheduleIntent absolute_schedule_intent = 7;
+    // Preferred v0.4 schedule envelope. It makes replacement and cancellation
+    // explicit and mutually exclusive. Field 7 remains a replacement-only
+    // compatibility surface for early v0.4 implementations.
+    ScheduleTransition schedule_transition = 10;
   }
-  // Required by absolute_schedule_intent only in the v0.4 profile. Diagnostic
+  // Required by field-7 replacement and field-10 transition in the v0.4 profile. Diagnostic
   // claims only. The receiver MUST compare these with the
   // authenticated transport principal and its local class policy. Neither
   // value conveys priority merely because a client supplied it.
   ControllerContext controller = 8;
-  // Required by absolute_schedule_intent only in the v0.4 profile. Lease
+  // Required by field-7 replacement and field-10 transition in the v0.4 profile. Lease
   // grants are issued by the deployment's trusted lease authority.
   // The receiver derives the canonical scope from doc_version + cap_ref /
   // owned nodes and rejects a mismatching scope_id.
@@ -101,6 +105,32 @@ message AbsoluteScheduleSlot {
   optional bool enable = 8;
 }
 
+// Atomic mutation of the one installed schedule for the receiver-derived
+// scope. Exactly one operation is present. A receiver validates and stages the
+// whole operation before making any target-visible change.
+message ScheduleTransition {
+  oneof operation {
+    AbsoluteScheduleIntent replacement = 1;
+    ScheduleCancellation cancellation = 2;
+  }
+}
+
+// Conditional cancellation prevents a delayed cancel from removing a newer
+// replacement. expected_plan_digest is exactly 32 bytes and names the
+// receiver's canonical currently-installed plan.
+message ScheduleCancellation {
+  bytes expected_plan_digest = 1;
+  ScheduleCancellationReason reason = 2;
+}
+
+enum ScheduleCancellationReason {
+  SCHEDULE_CANCELLATION_REASON_UNSPECIFIED = 0;
+  SCHEDULE_CANCELLATION_REASON_VALIDITY_END = 1;
+  SCHEDULE_CANCELLATION_REASON_SUPERSEDED = 2;
+  SCHEDULE_CANCELLATION_REASON_OPERATOR = 3;
+  SCHEDULE_CANCELLATION_REASON_SAFETY = 4;
+}
+
 enum ScheduleExecution {
   SCHEDULE_EXECUTION_UNSPECIFIED = 0;
   SCHEDULE_EXECUTION_NATIVE = 1;
@@ -139,6 +169,7 @@ message ControlAck {
   AppliedSchedule applied_schedule = 9;
   LeaseFence accepted_lease = 10;
   ControllerContext controller = 11;
+  AppliedScheduleCancellation applied_schedule_cancellation = 12;
 }
 
 enum ControlResult {
@@ -166,6 +197,10 @@ enum RejectionReason {
   REJECTION_REASON_VERIFICATION_FAILED = 14;
   REJECTION_REASON_INTERNAL = 15;
   REJECTION_REASON_SCOPE_BUSY = 16;
+  REJECTION_REASON_COMMAND_ID_COLLISION = 17;
+  REJECTION_REASON_NO_ACTIVE_SCHEDULE = 18;
+  REJECTION_REASON_PLAN_DIGEST_MISMATCH = 19;
+  REJECTION_REASON_AUTHORITY_RELEASE_UNCONFIRMED = 20;
 }
 
 // Fallback safety is about replay/double-write safety, not authority. SAFE
@@ -219,6 +254,15 @@ message AppliedSchedule {
   bool clamps_truncated = 7;
   uint64 valid_from_ts_ms = 8;
   uint64 valid_until_ts_ms = 9;
+}
+
+// Definite receipt for removing an installed schedule and releasing its
+// cross-writer exclusion. APPLIED cancellation requires a durable/native
+// readback level; mere transport acceptance cannot release authority.
+message AppliedScheduleCancellation {
+  bytes cancelled_plan_digest = 1;      // exactly 32 bytes
+  bool writer_exclusion_released = 2;   // must be true for APPLIED
+  ScheduleVerification verification = 3;
 }
 
 message ControlResultRequest {

@@ -19,8 +19,10 @@ conformance/
     cases.json      # terminal ACK + durable replay scenarios
     expected.json   # validity / exact replay outcomes
   schedule-v0.4/
-    cases.json      # absolute-time plans, fencing, quarantine, bounded receipts
-    expected.json   # UTC plans, lease decisions, structured-result validity
+    cases.json      # replace/cancel, scope, identity, fencing, authority, receipts
+    expected.json   # exact transitions, hashes, replay/reboot and result outcomes
+  wire-v0.3/
+    golden.json     # frozen proto digest and exact representative wire bytes
   resolve/
     cases.json      # inputs: an array of { name, query, doc }
     expected.json   # golden outputs: { [case.name]: <observable result> }
@@ -53,18 +55,30 @@ original terminal result without invoking the executor again.
 Pins the additive v0.4 contract:
 
 - one-shot UTC epoch-ms validity and half-open slots;
+- explicit atomic replacement or digest-guarded cancellation;
 - today/tomorrow, midnight, DST spring-gap and autumn-fold instants;
 - gaps/defaults, adjacency, overlap, and supported modes;
-- authenticated controller policy, priority, renewal/expiry, stale fences and
-  high-water persistence across reboot;
+- exact scope serialization plus SHA-256/base64url vectors;
+- broker/session-authenticated controller policy, priority, renewal/expiry,
+  stale fences and high-water persistence across reboot;
+- receiver-global immutable command ids across scalar/schedule domains;
+- writer exclusion retained across clock expiry, UNKNOWN, and power loss until
+  a definitely APPLIED ending transition;
 - UNKNOWN scope quarantine and positive reconciliation;
-- structured reason/fallback invariants and bounded applied receipts.
+- structured reason/fallback invariants and bounded replacement/cancellation
+  receipts.
 
 The fixture timezone is diagnostic only. Python, TypeScript, and C++ adopters
 consume the exact integer instants without consulting their local timezone
 database. The TypeScript reference is
-`editor/src/control-v0_4-engine.ts`; the corpus runner is included by
+`editor/src/control-v0_4-engine.ts` and
+`editor/src/schedule-authority-v0_4-engine.ts`; the corpus runner is included by
 `npm run test:control`.
+
+`wire-v0.3/golden.json` is a separate frozen boundary. The compatibility test
+hashes the unchanged v0.3 proto and recompiles its exact scalar, field-6
+schedule, and ACK bytes. New schedule codecs are v0.4-only artifacts selected
+from the retained topology version.
 
 ## The case format (`resolve/cases.json`)
 

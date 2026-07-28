@@ -125,7 +125,7 @@
         "constraints": { "$ref": "#/$defs/constraints" },
         "shape": {
           "enum": ["setpoint", "switch", "schedule"],
-          "description": "How the device accepts a control intent. In v0.4 a schedule offer carries an absolute-UTC scheduleSpec and accepts Control.absolute_schedule_intent field 7."
+          "description": "How the device accepts a control intent. In v0.4 a schedule offer carries an absolute-UTC scheduleSpec and accepts the explicit Control.schedule_transition field 10; replacement-only early-v0.4 peers may use field 7."
         },
         "controlGroup": {
           "type": "string",
@@ -212,8 +212,8 @@
     "scheduleSpec": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["maxSlots", "timeBasis", "supportedModes", "gapPolicy", "executionModes", "leaseRequired"],
-      "description": "Calendar-correct atomic schedule surface. Slot boundaries are absolute UTC epoch-ms instants and are always half-open; diagnostic timezone never changes execution instants.",
+      "required": ["maxSlots", "timeBasis", "supportedModes", "gapPolicy", "executionModes", "leaseRequired", "transitionEnvelope", "cancellationGuard", "writerExclusionRelease"],
+      "description": "Calendar-correct atomic schedule surface. Slot boundaries are absolute UTC epoch-ms instants and are always half-open; diagnostic timezone never changes execution instants. Replacement and conditional cancellation are complete atomic transitions.",
       "properties": {
         "maxSlots": { "type": "integer", "minimum": 1, "maximum": 8, "description": "Maximum slots accepted by the v0.4 embedded profile." },
         "slotFields": {
@@ -242,6 +242,9 @@
           "description": "Native device installation and/or durable controller-stepped execution offered by the receiver."
         },
         "leaseRequired": { "const": true, "description": "Every v0.4 absolute schedule requires authenticated controller context and a valid fence lease." },
+        "transitionEnvelope": { "const": "atomic_replace_cancel", "description": "The receiver supports Control.schedule_transition with exactly one complete replacement or conditional cancellation." },
+        "cancellationGuard": { "const": "expected_plan_digest", "description": "Cancellation names the exact receiver-canonical installed plan digest, preventing a delayed cancellation from removing a newer plan." },
+        "writerExclusionRelease": { "const": "applied_ending_transition", "description": "Schedule/scalar writer exclusion remains durable until cancellation or the validity-ending transition is definitely APPLIED; a clock crossing valid_until is not proof of release." },
         "resultMaxClamps": { "const": 8, "default": 8, "description": "Maximum clamp details returned in embedded AppliedSchedule; clamp_count reports any omitted total." },
         "endBound": { "const": "exclusive", "default": "exclusive", "description": "Absolute intervals are always [start,end)." }
       }

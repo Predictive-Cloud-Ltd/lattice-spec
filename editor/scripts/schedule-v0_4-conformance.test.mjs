@@ -12,13 +12,13 @@ const corpus = loadCorpus();
 const expected = JSON.parse(readFileSync(EXPECTED_PATH, "utf8"));
 
 for (const testCase of corpus.cases) {
-  test(`schedule v0.4 corpus: ${testCase.name}`, () => {
+  test(`schedule v0.4 corpus: ${testCase.name}`, async () => {
     assert.ok(
       Object.prototype.hasOwnProperty.call(expected, testCase.name),
       `no golden for "${testCase.name}"`,
     );
     assert.deepEqual(
-      JSON.parse(JSON.stringify(runCase(testCase, corpus.doc))),
+      JSON.parse(JSON.stringify(await runCase(testCase, corpus.doc))),
       expected[testCase.name],
     );
   });
