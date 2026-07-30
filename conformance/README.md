@@ -23,6 +23,7 @@ conformance/
     expected.json   # exact transitions, hashes, replay/reboot and result outcomes
   device-audience-envelope-v1/
     vectors.json    # frozen signed binary envelope + adversarial corpus
+    generate_vectors.py # deterministic TEST-ONLY corpus generator
     reference_consumer.py # independent stdlib P-256 verifier/parser
   wire-v0.3/
     golden.json     # frozen proto digest and exact representative wire bytes
@@ -103,6 +104,21 @@ Run the independent dependency-free consumer with:
 ```bash
 python3 conformance/device-audience-envelope-v1/reference_consumer.py
 ```
+
+Regenerate to an explicit temporary destination and prove byte-for-byte
+reproducibility before replacing the frozen corpus:
+
+```bash
+python3 conformance/device-audience-envelope-v1/generate_vectors.py \
+  --output /private/tmp/device-audience-vectors-regenerated.json --force
+cmp conformance/device-audience-envelope-v1/vectors.json \
+  /private/tmp/device-audience-vectors-regenerated.json
+```
+
+The generator's private scalar is deterministic, public, and labelled
+`TEST_PRIVATE_SCALAR`; it exists only to make conformance signatures
+reproducible. It is not production key material and must never be provisioned
+to a deployment.
 
 ## The case format (`resolve/cases.json`)
 
