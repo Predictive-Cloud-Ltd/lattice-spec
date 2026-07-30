@@ -21,6 +21,9 @@ conformance/
   schedule-v0.4/
     cases.json      # replace/cancel, scope, identity, fencing, authority, receipts
     expected.json   # exact transitions, hashes, replay/reboot and result outcomes
+  device-audience-envelope-v1/
+    vectors.json    # frozen signed binary envelope + adversarial corpus
+    reference_consumer.py # independent stdlib P-256 verifier/parser
   wire-v0.3/
     golden.json     # frozen proto digest and exact representative wire bytes
   resolve/
@@ -79,6 +82,27 @@ database. The TypeScript reference is
 hashes the unchanged v0.3 proto and recompiles its exact scalar, field-6
 schedule, and ACK bytes. New schedule codecs are v0.4-only artifacts selected
 from the retained topology version.
+
+## device-audience-envelope-v1/ — signed exact-device Control boundary
+
+Pins the binary `LATTICE-CONTROL-DEVICE-AUDIENCE-V1` signing preimage, canonical
+low-S ES256/P1363 signature, exact XIAO device and control topic, controller,
+scope, topology artifact, Control bytes, and bounded validity window. The
+single positive vector carries a real v0.4 field-10 schedule replacement.
+Four additional positive cases pin replacement/cancellation admission,
+retained-key handling, and admission-clock edges. Seventy-three negatives cover
+correctly signed malformed claims, actual
+receiver/topic and pinned-topology mismatch, all six Control binding
+mismatches, field-10-only schedule-transition enforcement, strict protobuf
+duplicates/unknowns/noncanonical varints, key selection and SEC1 failures,
+signature forms/scalars, payload integrity, canonical base64url, and admission
+clock edges.
+
+Run the independent dependency-free consumer with:
+
+```bash
+python3 conformance/device-audience-envelope-v1/reference_consumer.py
+```
 
 ## The case format (`resolve/cases.json`)
 
