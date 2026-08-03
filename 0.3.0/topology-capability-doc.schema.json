@@ -6,6 +6,7 @@
   "type": "object",
   "required": ["topologyVersion", "producer", "nodes"],
   "additionalProperties": false,
+  "patternProperties": { "^x-[^:]+:.+$": {} },
   "properties": {
     "$schema": { "type": "string" },
     "topologyVersion": { "type": "string", "description": "Version of THIS specification the doc conforms to (semver).", "examples": ["0.3.0"] },
@@ -31,6 +32,7 @@
     "node": {
       "type": "object",
       "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
       "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
       "then": { "required": ["id"] },
       "else": { "required": ["id", "kind"] },
@@ -88,6 +90,7 @@
       "type": "object",
       "required": ["serves"],
       "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
       "description": "When (and with what priority) this node serves as the aggregate read/control point for its children, instead of routing to each child. Replaces hardcoded primary-selection with data.",
       "properties": {
         "serves": { "type": "boolean" },
@@ -101,6 +104,7 @@
       "type": "object",
       "required": ["capability"],
       "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
       "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
       "then": true,
       "else": { "anyOf": [{ "required": ["read"] }, { "required": ["control"] }, { "required": ["derived"] }] },
@@ -368,6 +372,7 @@
       "type": "object",
       "required": ["key"],
       "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
       "description": "Reusable descriptor: a fingerprint (recognition rules — the discovery schema as data) plus capability/binding templates and a default aggregate. Instances reference it via node.deviceType. Keyed by (make, model, firmware); a firmware change is a new descriptor version, not a per-node rewrite.",
       "properties": {
         "key": { "type": "string", "examples": ["example-hybrid-inverter", "example-gateway", "example-evse", "example-meter"] },
@@ -392,6 +397,7 @@
       "type": "object",
       "required": ["from", "to", "type"],
       "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
       "properties": {
         "from": { "type": "string", "description": "subject node id" },
         "to": { "type": "string", "description": "object node id" },

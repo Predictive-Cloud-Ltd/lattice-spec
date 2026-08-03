@@ -14,6 +14,18 @@ unchanged.
 
 ### Added
 
+- **Vendor extension properties (`^x-<vendor>:` keys) are now accepted** on the
+  document root, `node`, `capabilityOffer`, `deviceType`, `relationship`, and
+  `aggregate` (#32). The spec already allowed namespaced `x-<vendor>:` *names*
+  for transform kinds, capability names, and node kinds, but every object was
+  `additionalProperties:false` with no `patternProperties` — so a producer had
+  no legal way to carry its own metadata, which was an oversight rather than a
+  deliberate restriction. The pattern is deliberately narrow (`^x-[^:]+:.+$`):
+  an unprefixed or mistyped key is still rejected, so this is an extension
+  point, not a blanket escape hatch. Value-shape objects (the `oneOf` branches
+  of `derived`, `valueOrRef`, `paramValue`, `constraintBound`) intentionally
+  remain closed, since permissive keys there would weaken variant
+  discrimination.
 - `Control.schedule_intent` at oneof field 6, carrying a typed, atomic
   `ScheduleIntent`.
 - Presence-aware optional schedule refinements for target/reserve SoC,
