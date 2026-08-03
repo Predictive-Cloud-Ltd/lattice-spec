@@ -235,6 +235,10 @@ The planner emits **intent**, not register pokes: for a target node (a leaf, or 
 ## 11. Open questions
 
 1. ~~Slot fields for the `schedule` shape~~ — **DONE (schematized):** `$defs/scheduleSlot` = `{start, end, mode, target_soc?, reserve_soc?, charge_power_limit?, discharge_power_limit?, enable?}` (a control-time payload), and a `shape: schedule` offer declares its surface via `scheduleSpec` (maxSlots, slotFields, endBound, requiresDefaultMode) so a consumer builds a valid plan per-vendor-knowledge-free. Inclusive-vs-exclusive end is `scheduleSpec.endBound`. See the vendor-fit gap analysis (Fox/GE worked examples).
+   The v0.3 MQTT mapping is `Control.schedule_intent` (field 6):
+   `{ slots:[{start_hhmm,end_hhmm,mode,...refinements}], default_mode? }`.
+   Optional scalar fields use protobuf presence. Legacy field 5 is deprecated
+   and rejected by default because its single integer `value` is ambiguous.
 2. ~~How modes compose with schedules~~ — **DECIDED (PR-C):** `battery.mode` IS the scheme; a slot's `mode` is the scheme for that window, and a non-schedule device expresses the same scheme via the `switch` shape. One headline control, not two overlapping ones.
 2a. The **scheme vocabulary** itself — **DECIDED (v1, adopted now):** the set in §3.x (`self_use`, `max_self_use`, `force_charge`, `export`, `idle`, `backup`, `eco`) is in effect; `battery.mode` stays an open string so it extends via `x-<vendor>:` without a schema change. Maintainer review (and whether schemes carry intensity/parameters — "max self-use" vs "self-use") is a later refinement, not a blocker.
 3. Vocabulary governance — namespacing, versioning, how a new device class is added.

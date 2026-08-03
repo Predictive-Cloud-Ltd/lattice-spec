@@ -8,3 +8,9 @@
 
 /0.2.0/*.proto
   Content-Type: text/plain; charset=utf-8
+
+/0.3.0/*.json
+  Content-Type: application/schema+json; charset=utf-8
+
+/0.3.0/*.proto
+  Content-Type: text/plain; charset=utf-8

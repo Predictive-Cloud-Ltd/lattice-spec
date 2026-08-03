@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice-spec.org/0.3.0/topology-capability-doc.schema.json",
+  "title": "Lattice — Topology & Capability Document",
+  "description": "An OpenAPI-style, vendor-publishable document describing a site's device topology (a graph of nodes connected by typed directed relationships) and the read/control capabilities each node offers, with concrete data-driven bindings and ranked access paths. A producer (a cloud integration or the gateway) emits a conformant doc; any consumer ingests it generically with no per-provider code. Scale-free: the same constructs describe a cell, a device, a site, or a city.",
+  "type": "object",
+  "required": ["topologyVersion", "producer", "nodes"],
+  "additionalProperties": false,
+  "patternProperties": { "^x-[^:]+:.+$": {} },
+  "properties": {
+    "$schema": { "type": "string" },
+    "topologyVersion": { "type": "string", "description": "Version of THIS specification the doc conforms to (semver).", "examples": ["0.3.0"] },
+    "docVersion": { "type": "integer", "description": "Monotonic instance version of THIS document. Bumps on any change, including capability `ref` (re)assignment. The data-plane protobuf carries `doc_version`; a consumer decodes telemetry/encodes control against the doc of the matching docVersion (re-reading the retained topology on an unknown version).", "examples": [1] },
+    "id": { "type": "string", "description": "Stable identifier for this document / site / fragment." },
+    "scope": { "enum": ["site", "fragment"], "default": "fragment", "description": "'fragment' = one producer's slice (the consumer merges fragments by node identity); 'site' = an already-merged graph." },
+    "producer": { "$ref": "#/$defs/producer" },
+    "deviceTypes": { "type": "array", "items": { "$ref": "#/$defs/deviceType" }, "description": "Reusable device-type descriptors (the components/$ref equivalent): a fingerprint plus capability/binding templates, referenced by node.deviceType." },
+    "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } },
+    "relationships": { "type": "array", "items": { "$ref": "#/$defs/relationship" } }
+  },
+  "$defs": {
+    "producer": {
+      "type": "object",
+      "required": ["name", "provider"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "provider": { "type": "string", "description": "Provider/transport identity backing this producer's access paths.", "examples": ["predbat-gateway", "givenergy-cloud", "solis-cloud", "enode", "predbat-cloud"] },
+        "authority": { "type": "integer", "default": 0, "description": "Precedence in a merge: higher wins; docVersion recency breaks ties. On-device discovery = low (0); installer/cloud overlays higher." }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
+      "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
+      "then": { "required": ["id"] },
+      "else": { "required": ["id", "kind"] },
+      "properties": {
+        "id": { "type": "string", "description": "Stable identity (e.g. a serial). THE merge key across producers — the same id from two producers is one node with both their access paths." },
+        "kind": { "$ref": "#/$defs/nodeKind" },
+        "deviceType": { "type": "string", "description": "Optional key referencing a deviceTypes[] descriptor." },
+        "attributes": { "$ref": "#/$defs/attributes" },
+        "parameters": { "$ref": "#/$defs/nodeParameters" },
+        "accessPaths": { "type": "array", "items": { "$ref": "#/$defs/accessPath" }, "description": "Ways this producer can reach the node. The consumer merges + ranks all producers' access paths to the same id." },
+        "aggregate": { "$ref": "#/$defs/aggregate" },
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this node (keyed by id) is removed from the merged result; only `id` is required." }
+      }
+    },
+    "nodeKind": {
+      "type": "string",
+      "description": "Domain-agnostic node class. Vendor/domain extensions use a namespace prefix, e.g. 'x-acme:thing'. 'structural' = a pure aggregator/virtual node (e.g. a plant or a city) with no telemetry of its own.",
+      "examples": ["battery", "inverter", "pv", "grid", "ev_charger", "ev", "heat_pump", "hvac", "heating_zone", "meter", "switch", "gateway", "ems", "structural"]
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Free-form node attributes referenced by routing, grouping and constraints.",
+      "additionalProperties": true,
+      "properties": {
+        "phase": { "type": ["integer", "string"], "description": "Electrical phase (used by group_by)." },
+        "ratedW": { "type": "number" },
+        "capacityWh": { "type": "number" },
+        "geo": { "$ref": "#/$defs/geo" }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "description": "Optional geospatial location — needed at building/district/city scale.",
+      "additionalProperties": true,
+      "properties": { "lat": { "type": "number" }, "lon": { "type": "number" }, "address": { "type": "string" } }
+    },
+    "accessPath": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "A way to reach this node's capabilities via a provider/transport.",
+      "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
+      "then": { "required": ["id"] },
+      "else": { "required": ["id", "provider"] },
+      "properties": {
+        "id": { "type": "string", "description": "Referenced by capabilityOffer.accessPath." },
+        "provider": { "type": "string" },
+        "locality": { "enum": ["local", "cloud"] },
+        "transport": { "type": "string", "examples": ["modbus", "ocpp", "http", "cloud-api"] },
+        "preference": { "type": "integer", "default": 0, "description": "Higher = preferred; the consumer fails over to the next-highest on unavailability." },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this access path (keyed by id) is removed; only `id` is required." }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["serves"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
+      "description": "When (and with what priority) this node serves as the aggregate read/control point for its children, instead of routing to each child. Replaces hardcoded primary-selection with data.",
+      "properties": {
+        "serves": { "type": "boolean" },
+        "minChildren": { "type": "integer", "default": 0, "description": "Qualifies only if the configured child-count over `over` >= this. e.g. EMS=0 (always primary), Gateway=2 (only when it fronts >1 unit)." },
+        "priority": { "type": "integer", "default": 0, "description": "Higher wins when several aggregators qualify (e.g. EMS > Gateway)." },
+        "over": { "$ref": "#/$defs/relationType" },
+        "partialAddressing": { "type": "boolean", "default": false, "description": "When this node serves as a delegated coordinator, whether it accepts a SUBSET of its children as the black-box command target. false (default) = a true black box that only honours 'all my units': a target covering only some of its children is served by hub-expanding those leaves (each must be independently controllable) or refused. true = resolution may send one delegated command scoped to just the covered children and cover the rest separately (a hybrid plan)." }
+      }
+    },
+    "capabilityOffer": {
+      "type": "object",
+      "required": ["capability"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
+      "if": { "properties": { "removed": { "const": true } }, "required": ["removed"] },
+      "then": true,
+      "else": { "anyOf": [{ "required": ["read"] }, { "required": ["control"] }, { "required": ["derived"] }] },
+      "description": "A capability this node offers on a given access path, with read and/or control binding(s), aggregation semantics and constraints. The same capability may appear multiple times on one node (one per access path) — the consumer ranks them by access-path preference (this is how 'control via gateway OR cloud, with fallback' is expressed).",
+      "properties": {
+        "capability": { "$ref": "#/$defs/capabilityName" },
+        "ref": { "type": "integer", "description": "Stable small integer (the data-plane `cap_ref`) identifying this (node, capability) on telemetry/control. Keyed by node+capability — multiple access-path offers for the same capability SHARE one ref (the consumer picks the access path). Stable within a docVersion." },
+        "accessPath": { "type": "string", "description": "id of the node's accessPath that serves this offer." },
+        "unit": { "type": "string", "examples": ["W", "Wh", "%", "V", "A", "degC", "Hz", "hhmm"] },
+        "read": { "$ref": "#/$defs/binding" },
+        "control": { "$ref": "#/$defs/binding" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "reducer": { "$ref": "#/$defs/reducer" },
+        "groupBy": { "type": "string", "description": "Attribute name partitioning a multi-element read into per-group results (e.g. 'phase' for grid voltage)." },
+        "distribution": { "$ref": "#/$defs/distribution" },
+        "constraints": { "$ref": "#/$defs/constraints" },
+        "shape": {
+          "enum": ["setpoint", "switch", "schedule"],
+          "description": "How the device accepts a control intent for this capability: a numeric value effective now (setpoint), an enum/on-off effective now (switch), or a time-windowed plan applied atomically (schedule). Required on an offer that carries a `control` binding. A `schedule` offer also declares a `scheduleSpec` (its slot count, honoured slot fields, end-bound and default-mode needs); the plan a consumer sends is an ordered list of `$defs/scheduleSlot` (a control-time payload, not topology data)."
+        },
+        "controlGroup": {
+          "type": "string",
+          "description": "Name of a coupled-write group. Capabilities on the same node sharing a controlGroup resolve and execute as ONE atomic operation (e.g. Solax (mode,target,power)); the resolver gathers all members' values, reading current state for any the consumer didn't supply. With ≥2 members, each declares a `groupSlot` saying where its value goes in the one operation."
+        },
+        "groupSlot": { "$ref": "#/$defs/groupSlot" },
+        "scheduleSpec": { "$ref": "#/$defs/scheduleSpec" },
+        "tier": {
+          "enum": [1, 2],
+          "description": "Conformance tier of this control offer: 1 = declarative binding (zero provider code, e.g. Modbus/CID); 2 = provider-implemented (imperative: schedule rebuild, coupled mode call, OAuth cloud write). Required on an offer that carries a `control` binding."
+        },
+        "feedback": {
+          "enum": ["ack", "perChild"],
+          "default": "ack",
+          "description": "What a successful control op on this offer reports. 'ack' (default) = a single acceptance; on a delegated aggregate this is the coordinator's ONE ack — it means 'the coordinator accepted the command', NOT that every child physically applied it, and it does not decompose into per-child results. 'perChild' = the binding reports individual child outcomes. When 'ack', per-child assurance is obtained by reading each child leaf's own state capability (echo-back) — the spec enables this via the leaves' read offers but does not perform it."
+        },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this offer (keyed by capability+accessPath) is removed; only `capability` is required (a bare-capability tombstone with no `accessPath` targets the access-path-less derived offer)." }
+      }
+    },
+    "groupSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How a controlGroup member's value is placed into the group's single operation. Exactly one of `field` (a named field in the coupled op's payload — e.g. Solax soc_target_control_mode's 'targetSoc') or `bits` (a bit-range of a shared register, written read-modify-write preserving other bits — e.g. Solis CID 636's storage-mode bitfield, where several capabilities each own bits). The member's own `control.transform` still applies (e.g. negate a discharge value into a shared signed field).",
+      "oneOf": [{ "required": ["field"] }, { "required": ["bits"] }],
+      "properties": {
+        "field": { "type": "string", "description": "named field in the coupled operation's payload that carries this member's value." },
+        "bits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lsb", "width"],
+          "description": "bit range [lsb .. lsb+width-1] this member owns in the shared register; the executor writes it read-modify-write, leaving other bits untouched.",
+          "properties": {
+            "lsb": { "type": "integer", "minimum": 0, "description": "least-significant bit index (0-based)." },
+            "width": { "type": "integer", "minimum": 1, "description": "number of bits this member occupies." }
+          }
+        }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "description": "A read value COMPUTED from OTHER capabilities on this node (not read from a register) — used in place of a `read` binding. Deterministic function of declared inputs only (e.g. load = pv − battery − grid); NEVER consumer-side analytics (calibration, learning, forecasting). Inputs reference sibling capabilities by `class.function`; the resolver gathers their current values and evaluates the op. No cycles.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "inputs"],
+          "description": "Weighted sum: value = Σ weight_i × value(input_i). Covers load_power, battery net flow.",
+          "properties": {
+            "op": { "const": "sum" },
+            "inputs": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["ref"],
+                "properties": {
+                  "ref": { "$ref": "#/$defs/capabilityName" },
+                  "weight": { "type": "number", "default": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "num", "den"],
+          "description": "Ratio: value = factor × value(num) / value(den). Covers e.g. usable capacity = remaining × 100 / soc.",
+          "properties": {
+            "op": { "const": "ratio" },
+            "num": {
+              "type": "object", "additionalProperties": false, "required": ["ref"],
+              "properties": { "ref": { "$ref": "#/$defs/capabilityName" }, "factor": { "type": "number", "default": 1 } }
+            },
+            "den": {
+              "type": "object", "additionalProperties": false, "required": ["ref"],
+              "properties": { "ref": { "$ref": "#/$defs/capabilityName" } }
+            }
+          }
+        }
+      ]
+    },
+    "scheduleSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "On a `shape: schedule` offer: the device's schedule SURFACE — enough for a consumer to build a valid plan with no per-vendor knowledge. The plan it sends is an ordered list of `scheduleSlot`s (a control-time payload, not topology data).",
+      "properties": {
+        "maxSlots": { "type": "integer", "minimum": 1, "description": "maximum number of slots the device accepts (e.g. Fox 8)." },
+        "slotFields": {
+          "type": "array",
+          "items": { "enum": ["target_soc", "reserve_soc", "charge_power_limit", "discharge_power_limit", "enable"] },
+          "description": "optional per-slot refinements this device honours, beyond the always-present {start, end, mode}."
+        },
+        "endBound": { "enum": ["exclusive", "inclusive"], "default": "exclusive", "description": "whether a slot's `end` time is exclusive (default) or inclusive (e.g. Fox treats the end minute as inclusive)." },
+        "requiresDefaultMode": { "type": "boolean", "default": false, "description": "true if the device needs a default `battery.mode` for time not covered by any slot." }
+      }
+    },
+    "scheduleSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "mode"],
+      "description": "One segment of a `schedule`-shape control plan — a CONTROL-TIME payload a consumer sends, not part of a topology document. `start`/`end` are HH:MM local (end interpreted per the offer's scheduleSpec.endBound); `mode` is a `battery.mode` scheme; optional refinements must be a subset of the offer's scheduleSpec.slotFields.",
+      "properties": {
+        "start": { "type": "string", "description": "HH:MM (local)" },
+        "end": { "type": "string", "description": "HH:MM (local); exclusive or inclusive per scheduleSpec.endBound" },
+        "mode": { "type": "string", "description": "battery.mode scheme for this window (e.g. force_charge, self_use)" },
+        "target_soc": { "type": "number" },
+        "reserve_soc": { "type": "number" },
+        "charge_power_limit": { "type": "number" },
+        "discharge_power_limit": { "type": "number" },
+        "enable": { "type": "boolean" }
+      }
+    },
+    "capabilityName": {
+      "type": "string",
+      "pattern": "^([a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*|x-[^:]+:.+)$",
+      "description": "Capability identity, qualified by device class as 'class.function' (the merge/resolve key). The class reflects the function's domain, not the node's kind (a gateway may offer 'battery.charge_power_limit' AND 'meter.grid_power'). Qualifying by class prevents collisions a bare name causes — e.g. a battery's charge power (W) vs an EV charger's charge current (A) are 'battery.charge_power_limit' and 'ev_charger.charge_current_limit', never grouped. Vendor/domain extensions namespace further (e.g. 'x-acme:foo'); a capability name MUST NOT name a vendor or device. Core set in examples.",
+      "examples": ["battery.soc", "battery.capacity", "battery.charge_power_limit", "battery.discharge_power_limit", "battery.target_soc", "battery.reserve_soc", "battery.mode", "battery.soh", "battery.cycle_count", "battery.cell_voltage", "battery.cell_temperature", "meter.grid_power", "meter.grid_voltage", "pv.power", "ev_charger.power", "ev_charger.charge_current_limit", "ev_charger.state", "thermal.temperature", "thermal.setpoint", "thermal.mode", "thermal.power", "switch.state"]
+    },
+    "binding": {
+      "type": "object",
+      "required": ["protocol", "address"],
+      "additionalProperties": true,
+      "description": "The concrete 'how to read/write this on this access path': protocol, address, op, encoding and a value transform. An adapter executes it; the model needs no per-model code. This is what replaces hardcoded register maps.",
+      "properties": {
+        "protocol": { "type": "string", "examples": ["modbus", "ocpp", "http", "cloud-api"] },
+        "address": { "type": ["string", "integer", "object"], "description": "Register number/range, API endpoint/field, OCPP action, etc." },
+        "op": { "type": "string", "examples": ["read_input", "read_holding", "write_single", "write_multi", "get", "post"] },
+        "count": { "type": "integer", "default": 1, "description": "# elements/registers — vector reads (per-unit SOC) or slot start+end." },
+        "encoding": { "$ref": "#/$defs/encoding" },
+        "transform": { "$ref": "#/$defs/transform" },
+        "readModifyWrite": {
+          "type": "boolean",
+          "default": false,
+          "description": "true if executing this control op requires reading current device state, merging the new value, and writing the whole object back (e.g. Fox schedule rebuild) — the executor read-modify-writes rather than writing a scalar."
+        }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "description": "Named, parameterised value transform (raw <-> engineering units). Core kinds are GENERIC; vendor-specifics live in a binding's parameters (e.g. a `ref` to a node parameter), or — as a last resort — a namespaced `x-<vendor>:` extension kind. A vendor name MUST NOT appear as a core kind (same rule as capability names). Optional `round` selects the division rounding mode (default truncating).",
+      "properties": {
+        "kind": {
+          "description": "A core registry kind, or a namespaced `x-<vendor>:` extension.",
+          "anyOf": [
+            { "enum": ["identity", "affine", "ratio", "negate", "clamp", "hhmm", "pipeline"] },
+            { "type": "string", "pattern": "^x-[^:]+:.+$" }
+          ]
+        },
+        "num": { "$ref": "#/$defs/valueOrRef" },
+        "den": { "$ref": "#/$defs/valueOrRef" },
+        "scale": { "$ref": "#/$defs/valueOrRef" },
+        "offset": { "$ref": "#/$defs/valueOrRef" },
+        "min": { "$ref": "#/$defs/valueOrRef" },
+        "max": { "$ref": "#/$defs/valueOrRef" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/transform" }, "description": "pipeline steps, applied left-to-right." },
+        "round": {
+          "enum": ["trunc", "half_up", "half_even"],
+          "default": "trunc",
+          "description": "Rounding mode for a dividing kind (`ratio`/`affine`). `trunc` (default) = integer division toward zero (back-compatible); `half_up` = round half away from zero ((x + den/2)/den for positive); `half_even` = round half to nearest even (banker's). Ignored by non-dividing kinds; `pipeline` steps carry their own."
+        },
+        "onRefUnavailable": {
+          "enum": ["zero", "max"],
+          "default": "zero",
+          "description": "Control-write behaviour when a `ref` parameter can't be resolved at runtime (e.g. battery capacity not yet read). `zero` (default) = fail-closed, yield no value / 0. `max` = fail-open: emit this transform's `max` value (the unrestricted maximum) rather than an under-scaled guess — e.g. a battery rate cap that writes 'unrestricted' until capacity is known. Requires `max` to be set (a conforming executor must know what to emit). A generic, vendor-neutral degradation policy."
+        }
+      },
+      "if": { "properties": { "onRefUnavailable": { "const": "max" } }, "required": ["onRefUnavailable"] },
+      "then": { "required": ["max"] },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "ratio" } }, "required": ["kind"] }, "then": { "required": ["num", "den"] } },
+        { "if": { "properties": { "kind": { "const": "pipeline" } }, "required": ["kind"] }, "then": { "required": ["steps"], "properties": { "steps": { "minItems": 1 } } } },
+        { "if": { "properties": { "kind": { "const": "clamp" } }, "required": ["kind"] }, "then": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }] } }
+      ]
+    },
+    "valueOrRef": {
+      "description": "A transform parameter: a literal number, or a reference to a declared node parameter with an optional constant factor.",
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "additionalProperties": false,
+          "properties": {
+            "ref": { "type": "string", "description": "Name of a node `parameters` entry; resolved at execution time." },
+            "factor": { "type": "number", "description": "Constant multiplier on the referenced value (e.g. capacity × 0.5)." }
+          }
+        }
+      ]
+    },
+    "nodeParameters": {
+      "type": "object",
+      "description": "Named node values a transform `ref` resolves against. Each value is EITHER a static literal number (known at config/discovery time, e.g. rated power) OR `{ \"source\": \"<capability>\" }` — resolved at execution time from that capability's latest reading (e.g. capacity from `battery.capacity`). A `source` capability MUST itself be resolvable without a `ref` back to a parameter (no cycles). If a sourced value is unavailable at runtime, a transform that refs it applies its `onRefUnavailable` policy (fail-closed by default).",
+      "additionalProperties": { "$ref": "#/$defs/paramValue" },
+      "properties": {
+        "capacity": { "$ref": "#/$defs/paramValue", "description": "Wh — typically { source: \"battery.capacity\" }" },
+        "rated_power": { "$ref": "#/$defs/paramValue", "description": "W — typically a static literal" },
+        "nominal_voltage": { "$ref": "#/$defs/paramValue", "description": "V" }
+      }
+    },
+    "paramValue": {
+      "description": "A node parameter: a static literal number, or a runtime value sourced from a capability.",
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "required": ["source"],
+          "additionalProperties": false,
+          "properties": { "source": { "$ref": "#/$defs/capabilityName", "description": "capability whose latest value supplies this parameter at runtime" } }
+        }
+      ]
+    },
+    "encoding": { "type": "string", "examples": ["u16", "i16", "u32_hl", "i32_hl", "u16_vec"] },
+    "reducer": { "type": "string", "enum": ["direct", "sum", "mean", "min", "max", "spread", "representative"], "description": "How multiple read sources (or vector elements) combine. 'representative' = redundant value, read one. 'spread' = max-min (e.g. cell imbalance)." },
+    "distribution": { "type": "string", "enum": ["replicate", "split", "first_accepts"], "description": "How one control intent maps onto multiple targets." },
+    "relationType": { "type": "string", "enum": ["contains", "measures", "controls", "powers"], "description": "Directed edge, read subject->object, with an implied named inverse." },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Bounds/valid-set/interlocks resolution must respect. A bound may be static (a number), a derived-expression sentinel string ('rated', 'min(capacity/2, rated)'), or runtime-sourced from a device-reported capability ({ source: '<capability>' }) — e.g. Fox's fdpwr_max / fdsoc_min read from the device and used to clamp writes.",
+      "properties": {
+        "min": { "$ref": "#/$defs/constraintBound" },
+        "max": { "$ref": "#/$defs/constraintBound", "description": "A number, a derived-expression string ('min(capacity/2, rated)'), or { source: capability } resolved at runtime." },
+        "validSet": { "type": "array" },
+        "rateLimit": { "type": "number", "description": "Max rate-of-change." },
+        "scope": { "enum": ["capability", "node", "site"], "default": "capability", "description": "site = e.g. max grid import, G98/G99 export limit." }
+      }
+    },
+    "constraintBound": {
+      "description": "A constraint bound: a static number, a sentinel/derived-expression string, or a runtime value sourced from a device-reported capability.",
+      "oneOf": [
+        { "type": "number" },
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["source"],
+          "additionalProperties": false,
+          "properties": { "source": { "$ref": "#/$defs/capabilityName", "description": "capability whose latest value supplies this bound at runtime (e.g. a device-reported power cap)" } }
+        }
+      ]
+    },
+    "deviceType": {
+      "type": "object",
+      "required": ["key"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
+      "description": "Reusable descriptor: a fingerprint (recognition rules — the discovery schema as data) plus capability/binding templates and a default aggregate. Instances reference it via node.deviceType. Keyed by (make, model, firmware); a firmware change is a new descriptor version, not a per-node rewrite.",
+      "properties": {
+        "key": { "type": "string", "examples": ["example-hybrid-inverter", "example-gateway", "example-evse", "example-meter"] },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capabilityOffer" } },
+        "aggregate": { "$ref": "#/$defs/aggregate" }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "How to recognise a device as this type (used by discovered producers, e.g. the gateway).",
+      "properties": {
+        "dtcHi": { "type": "string", "description": "Device-type-code high byte, e.g. '0x80'." },
+        "fwMin": { "type": "integer" },
+        "fwMax": { "type": "integer" },
+        "serialPrefix": { "type": "string" },
+        "probe": { "type": "object", "description": "e.g. an input register that must be > 0." }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "required": ["from", "to", "type"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-[^:]+:.+$": {} },
+      "properties": {
+        "from": { "type": "string", "description": "subject node id" },
+        "to": { "type": "string", "description": "object node id" },
+        "type": { "$ref": "#/$defs/relationType" },
+        "removed": { "type": "boolean", "description": "Overlay tombstone: when true this relationship is removed from the merged result." }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 > **Lattice is OpenAPI for energy-device capabilities:** producers describe devices, mergers reconcile sources, and controllers operate against generic capabilities instead of vendor code.
 
-This is the adopter's guide and self-certification checklist. The normative schema is [`0.2.0/topology-capability-doc.schema.json`](0.2.0/topology-capability-doc.schema.json); the behaviours below are pinned by language-neutral conformance corpora ([`conformance/`](conformance/)). If your implementation passes those corpora and meets the [acceptance criteria](#acceptance-criteria), it is credible — in any language, including obscure ones.
+This is the adopter's guide and self-certification checklist. The normative schema is [`0.3.0/topology-capability-doc.schema.json`](0.3.0/topology-capability-doc.schema.json); the behaviours below are pinned by language-neutral conformance corpora ([`conformance/`](conformance/)). If your implementation passes those corpora and meets the [acceptance criteria](#acceptance-criteria), it is credible — in any language, including obscure ones.
 
 ## The problem
 
@@ -99,7 +99,31 @@ The controller decides *what* to do generically; adapters only execute declared 
 
 ## Data plane & versioning
 
-Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [`0.2.0/topology-data-plane.proto`](0.2.0/topology-data-plane.proto)). `cap_ref` identifies a `(node, capability)` within a document; `docVersion` identifies the document a consumer is decoding/encoding against. A consumer that sees an unknown `docVersion` re-reads the retained topology.
+Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [`0.3.0/topology-data-plane.proto`](0.3.0/topology-data-plane.proto)). `cap_ref` identifies a `(node, capability)` within a document; `docVersion` identifies the document a consumer is decoding/encoding against. A consumer that sees an unknown `docVersion` re-reads the retained topology.
+
+For a schedule-shaped offer, `Control.schedule_intent` carries the complete
+replacement plan. `cap_ref` normally identifies the selected node's
+`battery.mode` offer. Each slot has local `start_hhmm`/`end_hhmm`, a mode, and
+only the optional refinements listed by that offer's `scheduleSpec.slotFields`.
+The receiver validates every slot, slot count, bounds, default-mode requirement,
+and document/ref match before executing anything.
+
+`Control.schedule` field 5 is retained only for protobuf compatibility. Its
+generic integer `value` has no safe interpretation, so a conformant v0.3
+executor rejects it unless an explicit migration adapter is configured. A
+sender uses field 6 only when the retained topology is at least v0.3.0.
+
+Every v0.3 control result is terminally classified as `APPLIED`,
+`NOT_APPLIED`, or `UNKNOWN`; `UNSPECIFIED` is invalid. `UNKNOWN` is the safety
+case: the first write might have succeeded, so the controller must not fail over
+or dual-write. It queries the original `command_id` and verifies through
+telemetry where possible.
+
+Executors persist a bounded result journal before publishing an ack. Duplicate
+commands and `…/result/get/<command_id>` queries replay the original result
+without executing the binding. The reference journal uses a 1,024-entry,
+24-hour profile and supports durable snapshot/restore. Expiry produces
+`UNKNOWN`, never permission to retry elsewhere.
 
 `docVersion` is **implementation-local**: each merged document is produced by one merger that owns its `docVersion`, and consumers use the concrete document they were handed. It is therefore *not* pinned across languages in the merge corpus (the corpus normalizes it out and pins merge *semantics*). Each implementation mints its own deterministic, content-derived `docVersion`; that it is a positive integer which changes with content is an in-language test. (If a future model needs independent mergers to produce *interchangeable* `doc_version`s, that requires canonical digest rules and pinning the exact value — out of scope today.)
 
@@ -107,13 +131,15 @@ Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [
 
 Validate documents against **both** the JSON Schema **and** the semantic conformance checker — the schema now enforces the capability-name shape (`class.function` | `x-*`) via `pattern`, and the semantic checker covers cross-reference and structural invariants the schema can't express.
 
-Three language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
+Four language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
 
+- **[`conformance/control/`](conformance/control/)** — schedule-envelope validation, legacy rejection, presence-aware values, and atomic failure.
+- **[`conformance/control-result/`](conformance/control-result/)** — terminal result validity, duplicate idempotency, and durable lost-ack replay.
 - **[`conformance/merge/`](conformance/merge/)** — `cases.json` (input fragments/overlays) → `expected.json` (the merged `{ site, warnings }`, with the implementation-local `site.docVersion` normalized out). Run your `merge`, delete `site.docVersion`, and compare.
 - **[`conformance/resolve/`](conformance/resolve/)** — read/control resolution: routing, ranked access-path fallback, clamping, aggregate delegation, derived reads.
 - **[`conformance/transform/`](conformance/transform/)** — bidirectional value transforms (raw↔engineering math); `toEng`/`fromEng` per case.
 
-The **reference implementation** is the editor's TypeScript: [`editor/src/merge-engine.ts`](editor/src/merge-engine.ts), [`editor/src/resolve-engine.ts`](editor/src/resolve-engine.ts), and [`editor/src/transform-engine.ts`](editor/src/transform-engine.ts), pinned by these corpora via the runners in [`editor/scripts/`](editor/scripts/). A second-language implementation adopts the *same* corpus files — that is what makes "similar implementation" mean "provably identical."
+The **reference implementation** is the editor's TypeScript: [`editor/src/control-engine.ts`](editor/src/control-engine.ts), [`editor/src/merge-engine.ts`](editor/src/merge-engine.ts), [`editor/src/resolve-engine.ts`](editor/src/resolve-engine.ts), and [`editor/src/transform-engine.ts`](editor/src/transform-engine.ts), pinned by these corpora via the runners in [`editor/scripts/`](editor/scripts/). A second-language implementation adopts the *same* corpus files — that is what makes "similar implementation" mean "provably identical."
 
 ## Acceptance criteria
 

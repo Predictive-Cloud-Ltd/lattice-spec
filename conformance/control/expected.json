@@ -1,0 +1,35 @@
+{
+  "schedule: typed plan preserves zero and false": {
+    "ok": true,
+    "errors": [],
+    "plan": {
+      "default_mode": "self_use",
+      "slots": [{
+        "start_hhmm": 30,
+        "end_hhmm": 430,
+        "mode": "force_charge",
+        "target_soc": 90,
+        "charge_power_limit": 0,
+        "enable": false
+      }]
+    }
+  },
+  "schedule: legacy field 5 is rejected": {
+    "ok": false,
+    "errors": ["legacy schedule payload is ambiguous and unsupported"]
+  },
+  "schedule: old decoder unknown field is a no-op": {
+    "ok": false,
+    "errors": ["control must contain exactly one payload"]
+  },
+  "schedule: invalid plan is rejected atomically": {
+    "ok": false,
+    "errors": [
+      "schedule has 2 slots; maximum is 1",
+      "schedule requires default_mode",
+      "slot 0 field target_soc is above 100",
+      "slot 1 overlaps or is not ordered",
+      "slot 1 requires mode"
+    ]
+  }
+}
