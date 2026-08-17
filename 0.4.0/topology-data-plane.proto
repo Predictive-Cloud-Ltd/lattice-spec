@@ -1,0 +1,226 @@
+syntax = "proto3";
+package predbat.topology.dataplane.v0;
+
+// Lattice v0.4 remains wire-additive to v0.3. Existing field numbers and
+// message layouts are retained verbatim. New schedule/fencing messages use new
+// fields, so a v0.3 decoder sees an unset payload and must nack/no-op.
+
+message Telemetry {
+  uint32 doc_version  = 1;
+  uint64 base_ts_ms   = 2;
+  repeated Sample samples = 3;
+}
+
+message Sample {
+  uint32 cap_ref   = 1;
+  uint32 group     = 2;
+  uint32 ts_off_ms = 3;
+  oneof value {
+    sint64 i = 4;
+    double d = 5;
+    bool   b = 6;
+  }
+}
+
+message Control {
+  string command_id  = 1; // MAX 63 UTF-8 bytes (64-byte nanopb array incl. NUL)
+  uint32 doc_version  = 2;
+  uint32 cap_ref      = 3;
+  oneof payload {
+    Scalar   scalar   = 4;
+    Schedule schedule = 5 [deprecated = true];
+    ScheduleIntent schedule_intent = 6;
+    AbsoluteScheduleIntent absolute_schedule_intent = 7;
+  }
+  // Required by absolute_schedule_intent only in the v0.4 profile. Diagnostic
+  // claims only. The receiver MUST compare these with the
+  // authenticated transport principal and its local class policy. Neither
+  // value conveys priority merely because a client supplied it.
+  ControllerContext controller = 8;
+  // Required by absolute_schedule_intent only in the v0.4 profile. Lease
+  // grants are issued by the deployment's trusted lease authority.
+  // The receiver derives the canonical scope from doc_version + cap_ref /
+  // owned nodes and rejects a mismatching scope_id.
+  LeaseFence lease = 9;
+}
+
+message Scalar {
+  oneof value {
+    sint64 i = 1;
+    double d = 2;
+    bool   b = 3;
+  }
+}
+
+// Frozen legacy v0.2/v0.3 schedule messages.
+message Schedule { repeated Slot slots = 1; }
+
+message Slot {
+  uint32 start_hhmm = 1;
+  uint32 end_hhmm   = 2;
+  sint64 value      = 3;
+}
+
+message ScheduleIntent {
+  repeated ScheduleSlot slots = 1;
+  optional string default_mode = 2;
+}
+
+message ScheduleSlot {
+  uint32 start_hhmm = 1;
+  uint32 end_hhmm   = 2;
+  string mode       = 3;
+  optional double target_soc = 4;
+  optional double reserve_soc = 5;
+  optional double charge_power_limit = 6;
+  optional double discharge_power_limit = 7;
+  optional bool enable = 8;
+}
+
+// One-shot, calendar-correct replacement schedule. All time fields are Unix
+// epoch milliseconds denoting UTC instants. The timezone is diagnostic only:
+// receivers MUST NOT reinterpret slot boundaries using a local timezone
+// database. Validity and slots are half-open intervals [start, end).
+message AbsoluteScheduleIntent {
+  repeated AbsoluteScheduleSlot slots = 1; // MAX 8 in embedded profile
+  optional string default_mode = 2;        // MAX 24 UTF-8 bytes
+  uint64 valid_from_ts_ms = 3;
+  uint64 valid_until_ts_ms = 4;
+  string diagnostic_timezone = 5;          // MAX 47 UTF-8 bytes, IANA name
+  ScheduleExecution execution = 6;
+}
+
+message AbsoluteScheduleSlot {
+  uint64 start_ts_ms = 1;
+  uint64 end_ts_ms   = 2;
+  string mode        = 3;                  // MAX 24 UTF-8 bytes
+  optional double target_soc = 4;
+  optional double reserve_soc = 5;
+  optional double charge_power_limit = 6;
+  optional double discharge_power_limit = 7;
+  optional bool enable = 8;
+}
+
+enum ScheduleExecution {
+  SCHEDULE_EXECUTION_UNSPECIFIED = 0;
+  SCHEDULE_EXECUTION_NATIVE = 1;
+  SCHEDULE_EXECUTION_CONTROLLER_STEPPED = 2;
+}
+
+enum ControllerClass {
+  CONTROLLER_CLASS_UNSPECIFIED = 0;
+  CONTROLLER_CLASS_AUTOMATION = 1;
+  CONTROLLER_CLASS_MANUAL = 2;
+  CONTROLLER_CLASS_SAFETY = 3;
+  CONTROLLER_CLASS_GRID = 4;
+}
+
+message ControllerContext {
+  string origin_id = 1;                 // MAX 36 UTF-8 bytes (UUID profile)
+  ControllerClass controller_class = 2;
+}
+
+message LeaseFence {
+  string lease_id = 1;                  // MAX 36 UTF-8 bytes (UUID profile)
+  string scope_id = 2;                  // MAX 47 UTF-8 bytes, opaque base64url digest
+  uint64 fencing_token = 3;             // monotonic, durable per canonical scope
+  uint64 expires_ts_ms = 4;             // exclusive lease expiry instant
+}
+
+message ControlAck {
+  string command_id = 1;                // MAX 63 UTF-8 bytes
+  bool   ok         = 2;
+  string error      = 3;                 // MAX 160 UTF-8 bytes
+  ControlResult result = 4;
+  Scalar applied_scalar = 5;
+  bool verified = 6;
+  uint64 completed_ts_ms = 7;
+  ControlRejection rejection = 8;
+  AppliedSchedule applied_schedule = 9;
+  LeaseFence accepted_lease = 10;
+  ControllerContext controller = 11;
+}
+
+enum ControlResult {
+  CONTROL_RESULT_UNSPECIFIED = 0;
+  CONTROL_RESULT_APPLIED = 1;
+  CONTROL_RESULT_NOT_APPLIED = 2;
+  CONTROL_RESULT_UNKNOWN = 3;
+}
+
+enum RejectionReason {
+  REJECTION_REASON_UNSPECIFIED = 0;
+  REJECTION_REASON_MALFORMED = 1;
+  REJECTION_REASON_STALE_DOCUMENT = 2;
+  REJECTION_REASON_UNSUPPORTED_OFFER = 3;
+  REJECTION_REASON_INVALID_SCHEDULE = 4;
+  REJECTION_REASON_UNSUPPORTED_MODE = 5;
+  REJECTION_REASON_AUTHENTICATED_ORIGIN_MISMATCH = 6;
+  REJECTION_REASON_LEASE_EXPIRED = 7;
+  REJECTION_REASON_STALE_FENCE = 8;
+  REJECTION_REASON_LEASE_CONFLICT = 9;
+  REJECTION_REASON_SCOPE_MISMATCH = 10;
+  REJECTION_REASON_SCOPE_QUARANTINED = 11;
+  REJECTION_REASON_EXECUTION_FAILED = 12;
+  REJECTION_REASON_EXECUTION_AMBIGUOUS = 13;
+  REJECTION_REASON_VERIFICATION_FAILED = 14;
+  REJECTION_REASON_INTERNAL = 15;
+  REJECTION_REASON_SCOPE_BUSY = 16;
+}
+
+// Fallback safety is about replay/double-write safety, not authority. SAFE
+// permits the equivalent intent to use another already-authorized Lattice
+// access path. It never authorizes a legacy downgrade or lease bypass.
+enum FallbackSafety {
+  FALLBACK_SAFETY_UNSPECIFIED = 0;
+  FALLBACK_SAFETY_SAFE = 1;
+  FALLBACK_SAFETY_BLOCKED = 2;
+}
+
+message ControlRejection {
+  RejectionReason reason = 1;
+  FallbackSafety fallback = 2;
+  string detail = 3;                    // MAX 96 UTF-8 bytes
+  string scope_id = 4;                  // MAX 47 UTF-8 bytes
+}
+
+enum ScheduleVerification {
+  SCHEDULE_VERIFICATION_UNSPECIFIED = 0;
+  SCHEDULE_VERIFICATION_ACCEPTED_ONLY = 1;
+  SCHEDULE_VERIFICATION_DURABLE_STORE_READBACK = 2;
+  SCHEDULE_VERIFICATION_NATIVE_TARGET_READBACK = 3;
+}
+
+enum ScheduleField {
+  SCHEDULE_FIELD_UNSPECIFIED = 0;
+  SCHEDULE_FIELD_TARGET_SOC = 1;
+  SCHEDULE_FIELD_RESERVE_SOC = 2;
+  SCHEDULE_FIELD_CHARGE_POWER_LIMIT = 3;
+  SCHEDULE_FIELD_DISCHARGE_POWER_LIMIT = 4;
+}
+
+message ScheduleClamp {
+  uint32 slot_index = 1;
+  ScheduleField field = 2;
+  double requested = 3;
+  double applied = 4;
+}
+
+// Bounded receipt for atomic schedule installation. It deliberately does not
+// echo the complete plan. plan_digest is exactly 32 bytes (SHA-256), clamps has
+// at most 8 entries, and clamp_count reports the total when truncated.
+message AppliedSchedule {
+  bytes plan_digest = 1;
+  uint32 accepted_slot_count = 2;
+  bool durably_accepted = 3;
+  ScheduleVerification verification = 4;
+  repeated ScheduleClamp clamps = 5;    // MAX 8
+  uint32 clamp_count = 6;
+  bool clamps_truncated = 7;
+  uint64 valid_from_ts_ms = 8;
+  uint64 valid_until_ts_ms = 9;
+}
+
+message ControlResultRequest {
+  string command_id = 1;
+}

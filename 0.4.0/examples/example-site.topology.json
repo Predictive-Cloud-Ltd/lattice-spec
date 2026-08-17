@@ -1,0 +1,103 @@
+{
+  "$schema": "https://lattice-spec.org/0.4.0/topology-capability-doc.schema.json",
+  "topologyVersion": "0.4.0",
+  "docVersion": 12,
+  "id": "example-calendar-correct-site",
+  "scope": "site",
+  "producer": {
+    "name": "example-gateway",
+    "provider": "predbat-gateway",
+    "authority": 0
+  },
+  "nodes": [
+    {
+      "id": "GW-1",
+      "kind": "gateway",
+      "aggregate": {
+        "serves": true,
+        "minChildren": 0,
+        "priority": 10,
+        "over": "controls",
+        "partialAddressing": false
+      },
+      "accessPaths": [
+        {
+          "id": "local",
+          "provider": "predbat-gateway",
+          "locality": "local",
+          "transport": "mqtt",
+          "preference": 100
+        }
+      ],
+      "capabilities": [
+        {
+          "capability": "battery.mode",
+          "ref": 41,
+          "accessPath": "local",
+          "shape": "schedule",
+          "tier": 2,
+          "feedback": "ack",
+          "scheduleSpec": {
+            "maxSlots": 8,
+            "slotFields": [
+              "target_soc",
+              "reserve_soc",
+              "charge_power_limit",
+              "discharge_power_limit",
+              "enable"
+            ],
+            "timeBasis": "absolute_utc_ms",
+            "supportedModes": [
+              "self_use",
+              "force_charge",
+              "force_export",
+              "hold"
+            ],
+            "gapPolicy": "DEFAULT_MODE",
+            "executionModes": [
+              "NATIVE",
+              "CONTROLLER_STEPPED"
+            ],
+            "leaseRequired": true,
+            "resultMaxClamps": 8,
+            "endBound": "exclusive"
+          },
+          "control": {
+            "protocol": "lattice-executor",
+            "address": "site-schedule",
+            "op": "atomic_replace"
+          }
+        },
+        {
+          "capability": "battery.target_soc",
+          "ref": 42,
+          "accessPath": "local",
+          "unit": "%",
+          "constraints": {
+            "min": 0,
+            "max": 100
+          },
+          "read": {
+            "protocol": "modbus",
+            "address": 60
+          }
+        },
+        {
+          "capability": "battery.charge_power_limit",
+          "ref": 43,
+          "accessPath": "local",
+          "unit": "W",
+          "constraints": {
+            "min": 0,
+            "max": 6000
+          },
+          "read": {
+            "protocol": "modbus",
+            "address": 61
+          }
+        }
+      ]
+    }
+  ],
+  "relationships": []
+}

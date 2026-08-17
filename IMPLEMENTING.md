@@ -2,7 +2,7 @@
 
 > **Lattice is OpenAPI for energy-device capabilities:** producers describe devices, mergers reconcile sources, and controllers operate against generic capabilities instead of vendor code.
 
-This is the adopter's guide and self-certification checklist. The normative schema is [`0.3.0/topology-capability-doc.schema.json`](0.3.0/topology-capability-doc.schema.json); the behaviours below are pinned by language-neutral conformance corpora ([`conformance/`](conformance/)). If your implementation passes those corpora and meets the [acceptance criteria](#acceptance-criteria), it is credible — in any language, including obscure ones.
+This is the adopter's guide and self-certification checklist. The normative schema is [`0.4.0/topology-capability-doc.schema.json`](0.4.0/topology-capability-doc.schema.json); the behaviours below are pinned by language-neutral conformance corpora ([`conformance/`](conformance/)). If your implementation passes those corpora and meets the [acceptance criteria](#acceptance-criteria), it is credible — in any language, including obscure ones.
 
 ## The problem
 
@@ -99,25 +99,37 @@ The controller decides *what* to do generically; adapters only execute declared 
 
 ## Data plane & versioning
 
-Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [`0.3.0/topology-data-plane.proto`](0.3.0/topology-data-plane.proto)). `cap_ref` identifies a `(node, capability)` within a document; `docVersion` identifies the document a consumer is decoding/encoding against. A consumer that sees an unknown `docVersion` re-reads the retained topology.
+Telemetry and control ride a compact `docVersion + cap_ref` binding (protobuf: [`0.4.0/topology-data-plane.proto`](0.4.0/topology-data-plane.proto)). `cap_ref` identifies a `(node, capability)` within a document; `docVersion` identifies the document a consumer is decoding/encoding against. A consumer that sees an unknown `docVersion` re-reads the retained topology.
 
-For a schedule-shaped offer, `Control.schedule_intent` carries the complete
-replacement plan. `cap_ref` normally identifies the selected node's
-`battery.mode` offer. Each slot has local `start_hhmm`/`end_hhmm`, a mode, and
-only the optional refinements listed by that offer's `scheduleSpec.slotFields`.
-The receiver validates every slot, slot count, bounds, default-mode requirement,
-and document/ref match before executing anything.
+For a v0.4 schedule-shaped offer, `Control.absolute_schedule_intent` carries the
+complete one-shot replacement plan. `cap_ref` normally identifies the selected
+node's `battery.mode` offer. Validity and slots are half-open UTC epoch-ms
+intervals; `diagnostic_timezone` is never reinterpreted by the receiver. The
+offer declares its supported modes, gap policy, native/controller-stepped
+execution modes and eight-slot embedded limit. The receiver validates the
+whole plan before admitting its authenticated controller lease and durable
+fence. See the [normative schedule/fencing semantics](spec/2026-07-27-calendar-correct-schedules-and-fencing.md).
 
-`Control.schedule` field 5 is retained only for protobuf compatibility. Its
-generic integer `value` has no safe interpretation, so a conformant v0.3
-executor rejects it unless an explicit migration adapter is configured. A
-sender uses field 6 only when the retained topology is at least v0.3.0.
+`Control.schedule` field 5 and local-HHMM `schedule_intent` field 6 remain for
+protobuf compatibility. A v0.4 sender uses field 7 only against a retained
+0.4 document. A v0.3 decoder ignores field 7, sees no known payload, and must
+nack/no-op.
 
-Every v0.3 control result is terminally classified as `APPLIED`,
+Every control result is terminally classified as `APPLIED`,
 `NOT_APPLIED`, or `UNKNOWN`; `UNSPECIFIED` is invalid. `UNKNOWN` is the safety
 case: the first write might have succeeded, so the controller must not fail over
 or dual-write. It queries the original `command_id` and verifies through
 telemetry where possible.
+
+For v0.4 schedules, NOT_APPLIED/UNKNOWN additionally carry a structured reason
+and fallback classification; UNKNOWN quarantines the exact control scope across
+reboot. APPLIED carries a bounded digest/count/verification receipt and at most
+eight clamp details, never a full-plan echo.
+
+An APPLIED plan is not cancelled by admission-lease expiry. Keep competing
+scalar/legacy writers suppressed through the schedule validity interval unless
+an explicitly authorized replacement/cancellation is atomically accepted.
+`NATIVE` and `CONTROLLER_STEPPED` schedules follow the same rule.
 
 Executors persist a bounded result journal before publishing an ack. Duplicate
 commands and `…/result/get/<command_id>` queries replay the original result
@@ -131,15 +143,16 @@ without executing the binding. The reference journal uses a 1,024-entry,
 
 Validate documents against **both** the JSON Schema **and** the semantic conformance checker — the schema now enforces the capability-name shape (`class.function` | `x-*`) via `pattern`, and the semantic checker covers cross-reference and structural invariants the schema can't express.
 
-Four language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
+Six language-neutral golden corpora are the cross-language contract. Each is a set of input cases plus expected outputs; an implementation passes by producing structurally-equal output for every case.
 
-- **[`conformance/control/`](conformance/control/)** — schedule-envelope validation, legacy rejection, presence-aware values, and atomic failure.
+- **[`conformance/schedule-v0.4/`](conformance/schedule-v0.4/)** — absolute-time schedules, controller fencing, UNKNOWN quarantine, and bounded applied results.
+- **[`conformance/control/`](conformance/control/)** — frozen v0.3 schedule-envelope validation, legacy rejection, presence-aware values, and atomic failure.
 - **[`conformance/control-result/`](conformance/control-result/)** — terminal result validity, duplicate idempotency, and durable lost-ack replay.
 - **[`conformance/merge/`](conformance/merge/)** — `cases.json` (input fragments/overlays) → `expected.json` (the merged `{ site, warnings }`, with the implementation-local `site.docVersion` normalized out). Run your `merge`, delete `site.docVersion`, and compare.
 - **[`conformance/resolve/`](conformance/resolve/)** — read/control resolution: routing, ranked access-path fallback, clamping, aggregate delegation, derived reads.
 - **[`conformance/transform/`](conformance/transform/)** — bidirectional value transforms (raw↔engineering math); `toEng`/`fromEng` per case.
 
-The **reference implementation** is the editor's TypeScript: [`editor/src/control-engine.ts`](editor/src/control-engine.ts), [`editor/src/merge-engine.ts`](editor/src/merge-engine.ts), [`editor/src/resolve-engine.ts`](editor/src/resolve-engine.ts), and [`editor/src/transform-engine.ts`](editor/src/transform-engine.ts), pinned by these corpora via the runners in [`editor/scripts/`](editor/scripts/). A second-language implementation adopts the *same* corpus files — that is what makes "similar implementation" mean "provably identical."
+The **reference implementation** is the editor's TypeScript: frozen v0.3 [`editor/src/control-engine.ts`](editor/src/control-engine.ts) and [`editor/src/control-result-engine.ts`](editor/src/control-result-engine.ts), additive v0.4 [`editor/src/control-v0_4-engine.ts`](editor/src/control-v0_4-engine.ts) and [`editor/src/control-result-v0_4-engine.ts`](editor/src/control-result-v0_4-engine.ts), plus [`editor/src/merge-engine.ts`](editor/src/merge-engine.ts), [`editor/src/resolve-engine.ts`](editor/src/resolve-engine.ts), and [`editor/src/transform-engine.ts`](editor/src/transform-engine.ts), pinned by these corpora via the runners in [`editor/scripts/`](editor/scripts/). A second-language implementation adopts the *same* corpus files — that is what makes "similar implementation" mean "provably identical."
 
 ## Acceptance criteria
 

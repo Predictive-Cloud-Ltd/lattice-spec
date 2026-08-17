@@ -1,7 +1,7 @@
 {
   "name": "lattice-editor",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Live editor + validator + topology visualiser for Lattice documents (editor.lattice-spec.org).",
   "scripts": {
@@ -13,9 +13,9 @@
     "test": "npm run test:conformance && npm run test:unit && npm run test:control && npm run test:resolve && npm run test:merge && npm run test:transform && npm run test:graph",
     "test:conformance": "node scripts/conformance.mjs",
     "test:unit": "node --test scripts/conformance.test.mjs",
-    "build:ref": "tsc src/control-engine.ts src/control-result-engine.ts src/resolve-engine.ts src/merge-engine.ts src/transform-engine.ts src/graph/eval.ts src/graph/layout.ts src/graph/inspector-model.ts --outDir scripts/.gen --module esnext --target es2020 --moduleResolution bundler --skipLibCheck",
+    "build:ref": "tsc src/control-engine.ts src/control-result-engine.ts src/control-v0_4-engine.ts src/control-result-v0_4-engine.ts src/resolve-engine.ts src/merge-engine.ts src/transform-engine.ts src/graph/eval.ts src/graph/layout.ts src/graph/inspector-model.ts --outDir scripts/.gen --module esnext --target es2020 --moduleResolution bundler --skipLibCheck",
     "pretest:control": "npm run build:ref",
-    "test:control": "node --test scripts/control-engine.test.mjs scripts/control-conformance.test.mjs scripts/control-result-engine.test.mjs scripts/control-result-conformance.test.mjs scripts/protobuf-compat.test.mjs",
+    "test:control": "node --test scripts/control-engine.test.mjs scripts/control-conformance.test.mjs scripts/control-result-engine.test.mjs scripts/control-result-conformance.test.mjs scripts/control-v0_4-engine.test.mjs scripts/schedule-v0_4-conformance.test.mjs scripts/schema-v0_4.test.mjs scripts/protobuf-compat.test.mjs scripts/protobuf-v0_4-compat.test.mjs",
     "pretest:resolve": "npm run build:ref",
     "test:resolve": "node --test scripts/resolve-conformance.test.mjs",
     "resolve:record": "npm run build:ref && node scripts/resolve-record.mjs",

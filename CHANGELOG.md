@@ -7,6 +7,35 @@ is versioned by **directory** — each frozen version lives in its own
 worked example. Versioning follows the `topologyVersion` major-match rule: a
 consumer accepts any document whose major version it understands.
 
+## [0.4.0] — 2026-07-27
+
+Additive calendar-correct schedule and controller-fencing release. Frozen 0.2
+and 0.3 artifacts are unchanged.
+
+### Added
+
+- Absolute one-shot schedule field 7 with explicit UTC validity, half-open
+  slots, diagnostic IANA timezone, supported modes, gap policy, and
+  native/controller-stepped execution.
+- Authenticated controller context plus lease identity, receiver-derived scope,
+  monotonic durable fence token, expiry, priority arbitration, and UNKNOWN
+  scope quarantine.
+- Structured rejection reasons with fallback-safe classification and a bounded
+  applied-schedule receipt containing digest, verification, and clamp summary.
+- A language-neutral v0.4 corpus covering today/tomorrow, midnight, DST
+  gap/fold, gaps/defaults, adjacency, modes, lease renewal/expiry, priority,
+  reboot, stale fencing, and UNKNOWN reconciliation.
+- Compatibility and payload-budget tests pinning old-decoder no-op behavior,
+  a 964-byte worst-case embedded Control, and a 486-byte worst-case ACK under
+  the 1024-byte gateway ingress ceiling.
+
+### Compatibility
+
+- v0.4 uses new `Control` field 7. A v0.3 decoder sees no known payload and
+  must nack/no-op.
+- Existing Control fields 1–6 and ControlAck fields 1–7 retain their wire
+  numbers and layouts.
+
 ## [0.3.0] — 2026-07-26
 
 Additive schedule-intent data-plane release. The frozen `0.2.0/` artifacts are
@@ -119,5 +148,6 @@ separate `0.1.0/` artifact — `0.2.0/` supersedes it.
 
 Pre-freeze working draft. Superseded by 0.2.0; not published as a stable artifact.
 
+[0.4.0]: https://github.com/Predictive-Cloud-Ltd/lattice-spec/tree/main/0.4.0
 [0.3.0]: https://github.com/Predictive-Cloud-Ltd/lattice-spec/tree/main/0.3.0
 [0.2.0]: https://github.com/Predictive-Cloud-Ltd/lattice-spec/tree/main/0.2.0

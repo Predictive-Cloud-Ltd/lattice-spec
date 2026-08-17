@@ -1,0 +1,358 @@
+{
+  "doc": {
+    "topologyVersion": "0.4.0",
+    "docVersion": 12,
+    "nodes": [
+      {
+        "id": "GW-1",
+        "capabilities": [
+          {
+            "capability": "battery.mode",
+            "ref": 41,
+            "shape": "schedule",
+            "control": { "protocol": "lattice-executor", "address": "site-schedule" },
+            "scheduleSpec": {
+              "maxSlots": 8,
+              "slotFields": ["target_soc", "charge_power_limit", "enable"],
+              "timeBasis": "absolute_utc_ms",
+              "supportedModes": ["self_use", "force_charge", "force_export", "hold"],
+              "gapPolicy": "DEFAULT_MODE",
+              "executionModes": ["NATIVE", "CONTROLLER_STEPPED"],
+              "leaseRequired": true,
+              "resultMaxClamps": 8,
+              "endBound": "exclusive"
+            }
+          },
+          {
+            "capability": "battery.target_soc",
+            "constraints": { "min": 0, "max": 100 },
+            "read": { "protocol": "modbus", "address": 60 }
+          },
+          {
+            "capability": "battery.charge_power_limit",
+            "constraints": { "min": 0, "max": 6000 },
+            "read": { "protocol": "modbus", "address": 61 }
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "absolute: today tomorrow and midnight are distinct adjacent instants",
+      "kind": "schedule",
+      "now_ms": 1785186000000,
+      "intent": {
+        "valid_from_ts_ms": 1785189600000,
+        "valid_until_ts_ms": 1785207600000,
+        "diagnostic_timezone": "Europe/London",
+        "execution": "CONTROLLER_STEPPED",
+        "slots": [
+          {
+            "start_ts_ms": 1785189600000,
+            "end_ts_ms": 1785196800000,
+            "mode": "force_charge",
+            "target_soc": 90,
+            "charge_power_limit": 0,
+            "enable": false
+          },
+          {
+            "start_ts_ms": 1785196800000,
+            "end_ts_ms": 1785207600000,
+            "mode": "self_use"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute: DST spring gap uses producer-resolved UTC instants",
+      "kind": "schedule",
+      "now_ms": 1774738800000,
+      "intent": {
+        "valid_from_ts_ms": 1774742400000,
+        "valid_until_ts_ms": 1774749600000,
+        "diagnostic_timezone": "Europe/London",
+        "execution": "NATIVE",
+        "default_mode": "self_use",
+        "slots": [
+          {
+            "start_ts_ms": 1774744200000,
+            "end_ts_ms": 1774747800000,
+            "mode": "force_charge"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute: DST fold duplicate wall time remains ordered",
+      "kind": "schedule",
+      "now_ms": 1792882800000,
+      "intent": {
+        "valid_from_ts_ms": 1792886400000,
+        "valid_until_ts_ms": 1792893600000,
+        "diagnostic_timezone": "Europe/London",
+        "execution": "NATIVE",
+        "default_mode": "self_use",
+        "slots": [
+          {
+            "start_ts_ms": 1792888200000,
+            "end_ts_ms": 1792891800000,
+            "mode": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute: uncovered validity requires default mode",
+      "kind": "schedule",
+      "now_ms": 1785186000000,
+      "intent": {
+        "valid_from_ts_ms": 1785189600000,
+        "valid_until_ts_ms": 1785207600000,
+        "diagnostic_timezone": "Europe/London",
+        "execution": "CONTROLLER_STEPPED",
+        "slots": [
+          {
+            "start_ts_ms": 1785196800000,
+            "end_ts_ms": 1785200400000,
+            "mode": "force_charge"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute: adjacent half-open slots do not overlap",
+      "kind": "schedule",
+      "now_ms": 1785186000000,
+      "intent": {
+        "valid_from_ts_ms": 1785189600000,
+        "valid_until_ts_ms": 1785196800000,
+        "diagnostic_timezone": "UTC",
+        "execution": "NATIVE",
+        "slots": [
+          {
+            "start_ts_ms": 1785189600000,
+            "end_ts_ms": 1785193200000,
+            "mode": "force_charge"
+          },
+          {
+            "start_ts_ms": 1785193200000,
+            "end_ts_ms": 1785196800000,
+            "mode": "self_use"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute: overlap rejects the whole plan",
+      "kind": "schedule",
+      "now_ms": 1785186000000,
+      "intent": {
+        "valid_from_ts_ms": 1785189600000,
+        "valid_until_ts_ms": 1785196800000,
+        "diagnostic_timezone": "UTC",
+        "execution": "NATIVE",
+        "slots": [
+          {
+            "start_ts_ms": 1785189600000,
+            "end_ts_ms": 1785195000000,
+            "mode": "force_charge"
+          },
+          {
+            "start_ts_ms": 1785193200000,
+            "end_ts_ms": 1785196800000,
+            "mode": "self_use"
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute: unsupported mode has a structured reason",
+      "kind": "schedule",
+      "now_ms": 1785186000000,
+      "intent": {
+        "valid_from_ts_ms": 1785189600000,
+        "valid_until_ts_ms": 1785196800000,
+        "diagnostic_timezone": "UTC",
+        "execution": "NATIVE",
+        "slots": [
+          {
+            "start_ts_ms": 1785189600000,
+            "end_ts_ms": 1785196800000,
+            "mode": "vendor_magic"
+          }
+        ]
+      }
+    },
+    {
+      "name": "fence: priority renewal expiry reboot stale token and unknown quarantine",
+      "kind": "fence",
+      "scope_id": "site:GW-1:battery.mode",
+      "operations": [
+        {
+          "op": "admit",
+          "now_ms": 1000,
+          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
+          "lease": { "lease_id": "lease-a", "scope_id": "site:GW-1:battery.mode", "fencing_token": 10, "expires_ts_ms": 5000 }
+        },
+        {
+          "op": "admit",
+          "now_ms": 1500,
+          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
+          "lease": { "lease_id": "lease-a", "scope_id": "site:GW-1:battery.mode", "fencing_token": 11, "expires_ts_ms": 6000 }
+        },
+        {
+          "op": "complete",
+          "now_ms": 1550,
+          "command_id": "fixture-command",
+          "result": "APPLIED"
+        },
+        {
+          "op": "admit",
+          "now_ms": 1600,
+          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
+          "lease": { "lease_id": "lease-a", "scope_id": "site:GW-1:battery.mode", "fencing_token": 10, "expires_ts_ms": 5000 }
+        },
+        {
+          "op": "admit",
+          "now_ms": 1700,
+          "authenticated": { "origin_id": "peer", "controller_class": "AUTOMATION", "priority": 10 },
+          "controller": { "origin_id": "peer", "controller_class": "AUTOMATION" },
+          "lease": { "lease_id": "lease-peer", "scope_id": "site:GW-1:battery.mode", "fencing_token": 12, "expires_ts_ms": 7000 }
+        },
+        {
+          "op": "admit",
+          "now_ms": 1800,
+          "command_id": "cmd-ambiguous",
+          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
+          "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 7000 }
+        },
+        {
+          "op": "unknown",
+          "now_ms": 1900,
+          "command_id": "cmd-ambiguous"
+        },
+        { "op": "restart" },
+        {
+          "op": "admit",
+          "now_ms": 2000,
+          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
+          "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 7000 }
+        },
+        { "op": "reconcile", "command_id": "cmd-ambiguous", "result": "UNKNOWN" },
+        { "op": "reconcile", "command_id": "cmd-ambiguous", "result": "APPLIED" },
+        {
+          "op": "admit",
+          "now_ms": 2500,
+          "command_id": "cmd-after-reconcile",
+          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
+          "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 7000 }
+        },
+        {
+          "op": "complete",
+          "now_ms": 2600,
+          "command_id": "cmd-after-reconcile",
+          "result": "APPLIED"
+        },
+        {
+          "op": "admit",
+          "now_ms": 8000,
+          "command_id": "cmd-lease-b",
+          "authenticated": { "origin_id": "predbat", "controller_class": "AUTOMATION", "priority": 10 },
+          "controller": { "origin_id": "predbat", "controller_class": "AUTOMATION" },
+          "lease": { "lease_id": "lease-b", "scope_id": "site:GW-1:battery.mode", "fencing_token": 14, "expires_ts_ms": 9000 }
+        },
+        {
+          "op": "complete",
+          "now_ms": 8050,
+          "command_id": "cmd-lease-b",
+          "result": "APPLIED"
+        },
+        { "op": "restart" },
+        {
+          "op": "admit",
+          "now_ms": 8100,
+          "authenticated": { "origin_id": "operator", "controller_class": "MANUAL", "priority": 20 },
+          "controller": { "origin_id": "operator", "controller_class": "MANUAL" },
+          "lease": { "lease_id": "lease-manual", "scope_id": "site:GW-1:battery.mode", "fencing_token": 13, "expires_ts_ms": 10000 }
+        }
+      ]
+    },
+    {
+      "name": "result: bounded applied schedule reports verification and clamps",
+      "kind": "result",
+      "ack": {
+        "command_id": "cmd-applied",
+        "ok": true,
+        "error": "",
+        "result": "APPLIED",
+        "verified": true,
+        "completed_ts_ms": 1785189000000,
+        "applied_schedule": {
+          "plan_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "accepted_slot_count": 2,
+          "durably_accepted": true,
+          "verification": "DURABLE_STORE_READBACK",
+          "clamps": [
+            { "slot_index": 0, "field": "TARGET_SOC", "requested": 101, "applied": 100 }
+          ],
+          "clamp_count": 1,
+          "clamps_truncated": false,
+          "valid_from_ts_ms": 1785189600000,
+          "valid_until_ts_ms": 1785207600000
+        },
+        "accepted_lease": {
+          "lease_id": "lease-a",
+          "scope_id": "site:GW-1:battery.mode",
+          "fencing_token": 11,
+          "expires_ts_ms": 1785211200000
+        },
+        "controller": {
+          "origin_id": "predbat",
+          "controller_class": "AUTOMATION"
+        }
+      }
+    },
+    {
+      "name": "result: UNKNOWN blocks fallback and identifies quarantine scope",
+      "kind": "result",
+      "ack": {
+        "command_id": "cmd-unknown",
+        "ok": false,
+        "error": "write completion ambiguous",
+        "result": "UNKNOWN",
+        "verified": false,
+        "completed_ts_ms": 1785189000000,
+        "rejection": {
+          "reason": "EXECUTION_AMBIGUOUS",
+          "fallback": "BLOCKED",
+          "detail": "write may have reached target",
+          "scope_id": "site:GW-1:battery.mode"
+        }
+      }
+    },
+    {
+      "name": "result: UNKNOWN cannot claim fallback safe",
+      "kind": "result",
+      "ack": {
+        "command_id": "cmd-unsafe",
+        "ok": false,
+        "error": "write completion ambiguous",
+        "result": "UNKNOWN",
+        "completed_ts_ms": 1785189000000,
+        "rejection": {
+          "reason": "EXECUTION_AMBIGUOUS",
+          "fallback": "SAFE",
+          "detail": "incorrectly permits fallback",
+          "scope_id": "site:GW-1:battery.mode"
+        }
+      }
+    }
+  ]
+}

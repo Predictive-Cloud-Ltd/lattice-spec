@@ -18,6 +18,9 @@ conformance/
   control-result/
     cases.json      # terminal ACK + durable replay scenarios
     expected.json   # validity / exact replay outcomes
+  schedule-v0.4/
+    cases.json      # absolute-time plans, fencing, quarantine, bounded receipts
+    expected.json   # UTC plans, lease decisions, structured-result validity
   resolve/
     cases.json      # inputs: an array of { name, query, doc }
     expected.json   # golden outputs: { [case.name]: <observable result> }
@@ -44,6 +47,24 @@ npm run test:control
 Pins the APPLIED / NOT_APPLIED / UNKNOWN distinction, rejects UNSPECIFIED, and
 proves that a duplicate command or post-restart lost-ack lookup returns the
 original terminal result without invoking the executor again.
+
+## schedule-v0.4/ — calendar-correct schedule and ownership conformance
+
+Pins the additive v0.4 contract:
+
+- one-shot UTC epoch-ms validity and half-open slots;
+- today/tomorrow, midnight, DST spring-gap and autumn-fold instants;
+- gaps/defaults, adjacency, overlap, and supported modes;
+- authenticated controller policy, priority, renewal/expiry, stale fences and
+  high-water persistence across reboot;
+- UNKNOWN scope quarantine and positive reconciliation;
+- structured reason/fallback invariants and bounded applied receipts.
+
+The fixture timezone is diagnostic only. Python, TypeScript, and C++ adopters
+consume the exact integer instants without consulting their local timezone
+database. The TypeScript reference is
+`editor/src/control-v0_4-engine.ts`; the corpus runner is included by
+`npm run test:control`.
 
 ## The case format (`resolve/cases.json`)
 
